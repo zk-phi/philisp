@@ -222,6 +222,13 @@
 : >> (+ hoge 2)
 : 3
 
+シンボルもただのデータなので、シンボルに束縛することができます。
+
+: >> (bind! 'hoge 'fuga)
+: fuga
+: >> hoge
+: fuga
+
 見かけによらず、 φLISP のシンボルは名前を持っていません。代わりに、シ
 ンボルテーブルと呼ばれる、名前からシンボルへの単射があります (すべての
 名前には対応するシンボルがあるが、すべてのシンボルに対応する名前がある
@@ -245,14 +252,21 @@
 (クォートされた) データを評価したくなったら、データの前にカンマを付けま
 す。
 
-: >> (bind! 'hoge '(mod 5 3))
+: >> '(mod 5 3)
 : (mod 5 3)
-: >> hoge
-: (mod 5 3)
-: >> ,hoge
-: 2
 : >> ,'(mod 5 3)
 : 2
+
+: >> (bind! 'foo 1)
+: 1
+: >> (bind! 'bar 'foo)
+: foo
+: >> 'bar
+: bar
+: >> bar
+: foo
+: >> ,bar
+: 1
 
 ** 関数
 
@@ -754,13 +768,26 @@ error message, or error if ERRORBACK is omitted.
 
 - 関数閉包が作れてない？
 
-- なんか挙動が変
+- ちょいちょい挙動が変
+  - 末尾呼び最適化されているのに途中で止まる
 
-  : (bind! 'begin (fn ,x (if (nil? x) ()
-  :                          (if (nil? (cdr x)) (eval (car x))
-  :                          ((fn (_) (apply begin (cdr x))) (eval (car x)))))))
+    : (bind! 'loop (fn () ,'(loop)))
 
-  : (bind! 'loop (fn () ,'(loop)))
+  - 名前呼びなのに無限ループ
+
+    : (bind! 'Y (fn (f) (f (Y f))))
+    : ((Y (fn (,f n) (if (n = 0) 1 (n * (,f (n - 1)))))) 1)
+
+  - eval をネストしてもエバられない
+
+    : >> ,,''(mod 5 3)
+    : (mod 5 3)
+
+  - 謎
+
+    : (bind! 'begin (fn ,x (if (nil? x) ()
+    :                          (if (nil? (cdr x)) (eval (car x))
+    :                          ((fn (_) (apply begin (cdr x))) (eval (car x)))))))
 
 - int や float もすべてオブジェクトなので効率が悪い
 
