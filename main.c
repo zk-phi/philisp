@@ -8,6 +8,7 @@
 void print(FILE*, lobj);
 lobj read();
 lobj eval(lobj);
+lobj current_env;
 
 int main(void)
 {

@@ -261,11 +261,14 @@
 : 1
 : >> (bind! 'bar 'foo)
 : foo
-: >> 'bar
+: >> (bind! 'baz 'bar)
+: >> 'baz
+: baz
+: >> baz
 : bar
-: >> bar
+: >> ,baz
 : foo
-: >> ,bar
+: >> ,,baz
 : 1
 
 ** 関数
@@ -777,11 +780,6 @@ error message, or error if ERRORBACK is omitted.
 
     : (bind! 'Y (fn (f) (f (Y f))))
     : ((Y (fn (,f n) (if (n = 0) 1 (n * (,f (n - 1)))))) 1)
-
-  - eval をネストしてもエバられない
-
-    : >> ,,''(mod 5 3)
-    : (mod 5 3)
 
   - 謎
 

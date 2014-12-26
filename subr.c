@@ -1711,6 +1711,7 @@ int eval_pattern(lobj o)
 #define DEBUG_DUMP(labelname) do{}while(0)
 #endif
 
+lobj f_subr_eval(lobj);
 lobj eval(lobj o, lobj errorback)
 {
     callstack = NIL;
@@ -1780,6 +1781,8 @@ lobj eval(lobj o, lobj errorback)
 
   apply:                  /* here O is a pappl object to be applied */
 
+    DEBUG_DUMP(" app");
+
     {
         lobj func = pappl_function(o),
              vals = pappl_values(o);
@@ -1844,6 +1847,12 @@ lobj eval(lobj o, lobj errorback)
             {
                 lobj (*fobj)(lobj) = subr_function(func);
 
+                if(fobj == f_subr_eval)
+                {
+                    o = car(vals);
+                    errorback = cdr(vals) ? car(cdr(vals)) : errorback;
+                    goto eval;
+                }
                 if(fobj == f_subr_if)
                 {
                     o = car(vals) ? car(cdr(vals)) : car(cdr(cdr(vals)));
