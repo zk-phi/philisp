@@ -558,7 +558,7 @@ DEFSUBR(subr_getc, _, E)(lobj args)
     if((val = getc(current_in)) != EOF)
         return character(val);
 
-    else if(args)
+    else if(args)               /* *FIXME* OPTIMIZE TAIL-CALL */
     {
         lobj o;
 
@@ -583,7 +583,7 @@ DEFSUBR(subr_putc, E, E)(lobj args)
 
     if(putc(character_value(car(args)), current_out) == EOF)
     {
-        if(cdr(args))
+        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
         {
             lobj o;
 
@@ -613,7 +613,7 @@ DEFSUBR(subr_ungetc, E, E)(lobj args)
 
     if(ungetc(character_value(car(args)), current_in) == EOF)
     {
-        if(cdr(args))
+        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
         {
             lobj o;
 
@@ -661,7 +661,7 @@ DEFSUBR(subr_open, E, E)(lobj args)
     /* call FOPEN */
     if(!(f = fopen(filename, mode)))
     {
-        if(cdr(args))
+        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
         {
             lobj o;
 
@@ -688,7 +688,7 @@ DEFSUBR(subr_close, E, E)(lobj args)
 
     if(fclose(stream_value(car(args))) == EOF)
     {
-        if(cdr(args))
+        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
         {
             lobj o;
 
@@ -952,15 +952,6 @@ DEFSUBR(subr_closure, E, _)(lobj args)
  * otherwise. */
 DEFSUBR(subr_subrp, E, _)(lobj args) { return subrp(car(args)) ? car(args) : NIL; }
 
-/* (subr-arity SUBR) => minimum arity of SUBR. */
-DEFSUBR(subr_arity, E, _)(lobj args)
-{
-    if(!subrp(car(args)))
-        type_error("subr \"subr-arity\"", 0, "subr");
-
-    return integer(subr_args(car(args)) & 0xFF);
-}
-
 /* (dlsubr FILENAME SUBRNAME [ERRORBACK]) => load SUBRNAME from
  * FILENAME. on failure, ERRORBACK is called with error message, or
  * error if ERRORBACK is omitted. */
@@ -974,7 +965,7 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
 
     if(!(h = dlopen(string_ptr(car(args)), RTLD_LAZY)))
     {
-        if(cdr(cdr(args)))
+        if(cdr(cdr(args)))      /* *FIXME* OPTIMIZE TAIL-CALL */
         {
             lobj o;
 
@@ -994,7 +985,7 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
 
     if(!(ptr = dlsym(h, string_ptr(car(cdr(args))))))
     {
-        if(cdr(cdr(args)))
+        if(cdr(cdr(args)))      /* *FIXME* OPTIMIZE TAIL-CALL */
         {
             lobj o;
 
@@ -1254,8 +1245,6 @@ DEFSUBR(subr_print, E, _)(lobj args)
 
 /* + PARSER         ---------------- */
 
-/* *TODO* IMPLEMENT PARSER */
-
 int read_char()
 {
     int ch;
@@ -1336,6 +1325,7 @@ int get_literal_char(int endchar)
 }
 
 /* *FIXME* "." が "0.0" になる */
+/* *TODO* コメントを実装する */
 
 /* read an S-expression and return it. if succeeded, last_parse_error
  * == NULL. otherwise last_parse_error == "error message". */
@@ -1353,6 +1343,12 @@ lobj read()
     {
       case EOF:
         PARSE_ERROR("unexpected EOF where an expression is expected.");
+
+      case ')':
+        PARSE_ERROR("too many ')' in expression.");
+
+      case ']':
+        PARSE_ERROR("too many ']' in expression.");
 
       case '\'':                /* quote */
         WITH_GC_PROTECTION()
@@ -1592,7 +1588,7 @@ DEFSUBR(subr_read, _, E)(lobj args)
 
     val = read();
 
-    if(last_parse_error)
+    if(last_parse_error)        /* *FIXME* OPTIMIZE TAIL-CALL */
     {
         if(args)
         {
@@ -1971,6 +1967,8 @@ void subr_initialize()
     current_in = stdin, current_out = stdout, current_err = stderr;
 
     /* bind subrs */
+    bind(intern("nil"), NIL);
+    bind(intern("t"), intern("t"));
     bind(intern("nil?"), subr(subr_nilp));
     bind(intern("symbol?"), subr(subr_symbolp));
     bind(intern("gensym"), subr(subr_gensym));
@@ -2020,7 +2018,6 @@ void subr_initialize()
     bind(intern("closure?"), subr(subr_closurep));
     bind(intern("closure"), subr(subr_closure));
     bind(intern("subr?"), subr(subr_subrp));
-    bind(intern("arity"), subr(subr_arity));
     bind(intern("dlsubr"), subr(subr_dlsubr));
     bind(intern("continuation?"), subr(subr_continuationp));
     bind(intern("eq?"), subr(subr_eq));

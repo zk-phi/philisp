@@ -88,7 +88,6 @@ lsubr subr_closure;
 
 lsubr subr_subrp;
 lsubr subr_call_subr;
-lsubr subr_arity;
 lsubr subr_dlsubr;
 
 /* continuation */
