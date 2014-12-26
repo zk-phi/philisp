@@ -722,7 +722,7 @@ evaluation rule of PROC.
 continuation is called in BODY, evaluate AFTER before winding the
 continuation.
 
-(call/cc FUNC) => evaluate BODY and then AFTER. when a continuation is
+(call-cc FUNC) => evaluate BODY and then AFTER. when a continuation is
 called in BODY, evaluate AFTER before winding the continuation.
 
 (eval O [ERRORBACK]) => evaluate O. on failure, call ERRORBACK with
