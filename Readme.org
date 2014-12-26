@@ -344,7 +344,7 @@ LISP の fexprに近いかな？
 
 ** 変数束縛と関数閉包
 
-(;w;)
+(；ｗ；)
 
 -----
 
@@ -740,17 +740,26 @@ error message, or error if ERRORBACK is omitted.
 
 - REPL がハリボテなので束縛の管理が信用できない (末尾呼び最適化のせい)
 
+  : >> (bind! 'x 1)
+  : 1
+  : >> ((fn (x) x) 2)
+  : 2
+  : >> x
+  : 2
+
+  !?!?
+
 - 保存した継続を起動するとなぜか引数が多すぎると言われる
 
 - 関数閉包が作れてない？
 
 - なんか挙動が変
 
-: (bind! 'begin (fn ,x (if (nil? x) ()
-:                          (if (nil? (cdr x)) (eval (car x))
-:                          ((fn (_) (apply begin (cdr x))) (eval (car x)))))))
+  : (bind! 'begin (fn ,x (if (nil? x) ()
+  :                          (if (nil? (cdr x)) (eval (car x))
+  :                          ((fn (_) (apply begin (cdr x))) (eval (car x)))))))
 
-: (bind! 'loop (fn () ,'(loop)))
+  : (bind! 'loop (fn () ,'(loop)))
 
 - int や float もすべてオブジェクトなので効率が悪い
 
