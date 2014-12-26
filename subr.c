@@ -5,13 +5,13 @@
 #include <ctype.h>
 #include <dlfcn.h>
 
+#define DEBUG 0
 #define unused(var) (void)(var) /* suppress "unused variable" warning */
 
 lobj eval(lobj, lobj);
 
 /* + ENVIRONMENT    ---------------- */
 
-/* protects = unwind hooks added by unwind-protect */
 lobj current_env = NIL, callstack = NIL, unwind_protects = NIL;
 FILE *current_in, *current_out, *current_err;
 
@@ -1690,11 +1690,34 @@ int eval_pattern(lobj o)
     }                                                           \
     while(0)
 
+#if DEBUG
+#define DEBUG_DUMP(labelname)                                 \
+    do{                                                       \
+        lobj env = current_env;                               \
+        fprintf(stdout, labelname ": "); print(stdout, o);    \
+        fprintf(stdout, " | env: ");                          \
+        for(; env; env = cdr(env))                            \
+            if(car(env))                                      \
+            {                                                 \
+                print(stdout, car(car(env)));                 \
+                fprintf(stdout, " ");                         \
+            }                                                 \
+            else                                              \
+                fprintf(stdout, "/ ");                        \
+        fprintf(stdout, "\n"); fflush(stdout);                \
+    }while(0)
+#endif
+#if !DEBUG
+#define DEBUG_DUMP(labelname) do{}while(0)
+#endif
+
 lobj eval(lobj o, lobj errorback)
 {
     callstack = NIL;
 
   eval:                 /* here O is an expression to be evaluated. */
+
+    DEBUG_DUMP("eval");
 
     if(symbolp(o))
     {
@@ -1705,14 +1728,18 @@ lobj eval(lobj o, lobj errorback)
     }
     else if(consp(o))
     {
-        env_boundary();         /* protect "saved_env" from "bind" */
         WITH_GC_PROTECTION() /* stack_frame = [pappl, pending_args, saved_env] */
             callstack = cons(array(3, NIL, cdr(o), current_env), callstack);
+
         o = car(o);
+
+        env_boundary();         /* protect "saved_env" from "bind" */
         goto eval;
     }
 
   ret:                       /* here O is an object evaluated just now. */
+
+    DEBUG_DUMP(" ret");
 
     if(!callstack)           /* nothing more to evaluate */
         return o;
@@ -1736,7 +1763,10 @@ lobj eval(lobj o, lobj errorback)
             ptr[1] = cdr(ptr[1]);
 
             if(pappl_eval_pattern(ptr[0]) & 1)
+            {
+                env_boundary();         /* protect "saved_env" from "bind" */
                 goto eval;
+            }
             else
                 goto ret;
         }
