@@ -217,14 +217,14 @@ int all_integerp(lobj lst)
     return 1;
 }
 
-/* (% INT1 INT2) => return (INT1 % INT2). */
+/* (mod INT1 INT2) => return (INT1 % INT2). */
 DEFSUBR(subr_mod, E E, _)(lobj args)
 {
     if(!integerp(car(args)))
-        type_error("subr \"%\"", 0, "integer");
+        type_error("subr \"mod\"", 0, "integer");
 
     if(!integerp(car(cdr(args))))
-        type_error("subr \"%\"", 1, "integer");
+        type_error("subr \"mod\"", 1, "integer");
 
     return integer(integer_value(car(args)) % integer_value(car(cdr(args))));
 }
