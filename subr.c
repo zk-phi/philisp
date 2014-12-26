@@ -917,7 +917,7 @@ DEFSUBR(subr_fn, Q Q, _)(lobj args)
             else if(!consp(car(formals))) /* (x ...) */
             {
                 setcdr(tail, cons(car(formals), NIL));
-                tail = cdr(tail), pattern = pattern | (mask & 1), len++;
+                tail = cdr(tail), pattern = pattern | (mask & ~0), len++;
                 mask <<= 1, formals = cdr(formals);
             }
             else if(car(car(formals)) == intern("eval")       /* ((eval x) ...) */
@@ -1032,7 +1032,7 @@ DEFSUBR(subr_eq, _, E)(lobj args)
             last = car(args), args = cdr(args);
         }
 
-        return car(last);
+        return symbol();
     }
 }
 
