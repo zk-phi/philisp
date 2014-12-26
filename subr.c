@@ -1095,7 +1095,7 @@ void put_literal_char(FILE* stream, char ch)
         if(isprint((int)ch))
             putc(ch, stream);
         else
-            fprintf(stream, "\\x%2x", ch);
+            fprintf(stream, "\\x%02x", (int)ch & 0xFF);
     }
 }
 
@@ -1309,11 +1309,11 @@ int get_literal_char(int endchar)
                 {
                     ch = getc(current_in);
                     if('0' <= ch && ch <= '9')
-                        v = v * 8 + (ch - '0');
+                        v = v * 16 + (ch - '0');
                     else if('a' <= ch && ch <= 'f')
-                        v = v * 8 + (ch - 'a');
+                        v = v * 16 + (ch - 'a') + 10;
                     else if('A' <= ch && ch <= 'F')
-                        v = v * 8 + (ch - 'A');
+                        v = v * 16 + (ch - 'A') + 10;
                     else
                         ungetc(ch, current_in);
                 }
