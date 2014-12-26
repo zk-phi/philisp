@@ -75,6 +75,8 @@ lobj list_array(lobj lst)
     return o;
 }
 
+/* *TODO* IMPLEMENT STACK DUMPER, ERROR HANDLER */
+
 void type_error(char* name, unsigned ix, char* expected)
 {
     fprintf(current_err,
@@ -882,7 +884,7 @@ DEFSUBR(subr_fn, Q Q, _)(lobj args)
     {
         lobj head, tail;
         unsigned char len;
-        int pattern;
+        int pattern, mask;
 
         if(!consp(car(formals))) /* (x ...) */
             head = tail = cons(car(formals), NIL), pattern = 1, len = 1;
@@ -892,7 +894,7 @@ DEFSUBR(subr_fn, Q Q, _)(lobj args)
         else
             lisp_error("invalid syntax in subr \"fn\".");
 
-        formals = cdr(formals);
+        mask = 2, formals = cdr(formals);
         while(formals)
         {
             if(!consp(formals)) /* x */
@@ -915,14 +917,14 @@ DEFSUBR(subr_fn, Q Q, _)(lobj args)
             else if(!consp(car(formals))) /* (x ...) */
             {
                 setcdr(tail, cons(car(formals), NIL));
-                tail = cdr(tail), pattern = (pattern << 1) + 1, len++;
-                formals = cdr(formals);
+                tail = cdr(tail), pattern = pattern | (mask & 1), len++;
+                mask <<= 1, formals = cdr(formals);
             }
             else if(car(car(formals)) == intern("eval")       /* ((eval x) ...) */
                     && symbolp(car(cdr(car(formals)))))
             {
                 setcdr(tail, cons(car(cdr(car(formals))), NIL));
-                tail = cdr(tail), pattern <<= 1, len++;
+                tail = cdr(tail), len++;
                 formals = cdr(formals);
             }
             else
@@ -1324,8 +1326,8 @@ int get_literal_char(int endchar)
     }
 }
 
-/* *FIXME* "." が "0.0" になる */
-/* *TODO* コメントを実装する */
+/* *FIXME* "." is parsed as "0.0" */
+/* *TODO* implement comment */
 
 /* read an S-expression and return it. if succeeded, last_parse_error
  * == NULL. otherwise last_parse_error == "error message". */
@@ -1805,6 +1807,7 @@ lobj eval(lobj o, lobj errorback)
 
             if((num_args & 255) < num_vals && !(num_args & 256)) /* too many */
                 EVALUATION_ERROR("too many arguments applied to a subr.");
+
             else if(num_vals < (num_args & 255)) /* too few */
                 goto ret;
             else
