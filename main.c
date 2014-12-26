@@ -1,6 +1,6 @@
 /* phi-lisp interpreter (prototype) : 2014 zk_phi */
 
-#include "phi.h"
+#include "philisp.h"
 #include "subr.h"
 
 #include <stdio.h>
