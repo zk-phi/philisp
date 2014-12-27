@@ -6,6 +6,7 @@
 
 /* --- configs --- */
 
+#define DEBUG           0    /* enable debug output */
 #define SYMBOL_NAME_MAX 50   /* maximum length of symbol name */
 #define GC_PROTECT_MAX  500  /* maximum number of protected objects */
 

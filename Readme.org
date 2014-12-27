@@ -583,9 +583,6 @@ DLL を動的にロードして φLISP の関数として呼び出すことが�
 (bind! O1 [O2]) => bind O1 to object O2 in the innermost scope and
 return O2. if O2 is omitted, bind O1 to ().
 
-(set! O1 O2) => update binding of O1 to O2 and return O2. error if O1
-is unbound.
-
 (bound-value O [ERRORBACK]) => object which O is bound to. if O is
 unbound, call ERRORBACK with error message, or error if ERRORBACK is
 omitted.

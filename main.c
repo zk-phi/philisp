@@ -5,44 +5,42 @@
 
 #include <stdio.h>
 
-lobj eval(lobj);
+#if DEBUG
+lobj eval(lobj, lobj);
 void print(FILE*, lobj);
 lobj read();
-
 int main(void)
 {
-    /* lobj repl = */
-    /*     list(2, list(3, intern("fn"), list(1, intern("loop")), */
-    /*                  list(2, intern("loop"), */
-    /*                       list(3, intern("fn"), NIL, */
-    /*                            list(2, list(3, intern("fn"), list(1, intern("_")), */
-    /*                                         list(2, intern("puts"), string("\n\n"))), */
-    /*                                 list(2, list(3, intern("fn"), list(1, intern("_")), */
-    /*                                              list(2, intern("print"), */
-    /*                                                   list(2, intern("eval"), */
-    /*                                                        list(1, intern("read"))))), */
-    /*                                      list(2, intern("puts"), string(">> "))))))), */
-    /*          list(3, intern("fn"), list(1, intern("f")), */
-    /*               list(2, list(3, intern("fn"), list(1, intern("_")), */
-    /*                            list(2, intern("loop"), intern("f"))), */
-    /*                    list(1, intern("f"))))); */
-
-    /* ((fn (loop) */
-    /*   (loop (fn () ((fn (_) (puts "\n\n")) */
-    /*                 ((fn (_) (print (eval (read)))) */
-    /*                  (puts ">> ")))))) */
-    /*  (fn (f) ((fn (_) (loop f)) (f)))) */
-
     subr_initialize();
 
-    /* (subr_eval.function)(list(1, repl)); */
-
+    /* use pseudo-repl to reduce debug output. top-level binding may
+     * be destructed by function call, because of tail-call
+     * optimization */
     while(1)
     {
         printf(">> "); fflush(stdout);
-        print(stdout, eval(read()));
+        print(stdout, eval(read(), NIL));
         puts("\n"); fflush(stdout);
     }
-
-    return 0;
 }
+#endif
+
+#if !DEBUG
+int main(void)
+{
+    lobj repl =
+        list(2, function(512+1, list(1, intern("repl")), list(1, intern("repl"))),
+             function((~0) << 8, symbol(),
+                      list(4, intern("repl"),
+                           list(2, intern("puts"), string(">> ")),
+                           list(2, intern("print"),
+                                list(2, intern("eval"),
+                                     list(1, intern("read")))),
+                           list(2, intern("puts"), string("\n\n")))));
+    /* = ((fn (repl) (repl)) */
+    /*    (fn (gensym) (repl (puts ">> ") (print (eval (read))) (puts "\n\n")))) */
+
+    subr_initialize();
+    eval(repl, NIL);
+}
+#endif

@@ -1,9 +1,3 @@
-/* *FIXME* DONOT CALL "eval" OUTIDE "eval"
- * (inner eval will break outer eval's stack'. but callstack cannot be
- *  local since outer stack must be unwinded on call
- *  tocontinuation. maybe "eval" should handle errors?)
- */
-
 #include "philisp.h"
 #include "subr.h"
 
@@ -11,7 +5,6 @@
 #include <ctype.h>
 #include <dlfcn.h>
 
-#define DEBUG 0
 #define unused(var) (void)(var) /* suppress "unused variable" warning */
 
 lobj eval(lobj, lobj);
@@ -24,8 +17,7 @@ FILE *current_in, *current_out, *current_err;
 /* push boundary to current environ */
 void env_boundary() { current_env = cons(NIL, current_env); }
 
-/* search for a binding of O. if LIMIT is non-0, search only before the
- * last boundry. returns binding, or NIL if unbound. */
+/* search for a binding of O. returns binding, or () if unbound. */
 lobj binding(lobj o)
 {
     lobj env = current_env;
@@ -41,26 +33,39 @@ lobj binding(lobj o)
     return NIL;
 }
 
-/* if binding of O is found before a boundary, modify the
- * binding. otherwise push a new binding of O to VALUE. */
-void bind(lobj o, lobj value)
+/* if binding of O is found, modify the binding. otherwise add a new
+ * binding of O to VALUE. when LOCAL is non-0, environ before the last
+ * boundary is not modified. */
+void bind(lobj o, lobj value, int local)
 {
-    lobj env = current_env;
+    lobj env, last;
 
-    while(env && car(env))
+    if(!current_env)
+        WITH_GC_PROTECTION()
+            current_env = cons(cons(o, value), NIL);
+
+    else
     {
-        if(car(car(env)) == o)
+        env = cdr(current_env), last = current_env;
+
+        while(env && (!local || car(env)))
         {
-            setcdr(car(env), value);
-            return;
+            if(car(env) && car(car(env)) == o)
+            {
+                setcdr(car(env), value);
+                return;
+            }
+
+            else
+            {
+                last = env;
+                env = cdr(env);
+            }
         }
 
-        else
-            env = cdr(env);
+        WITH_GC_PROTECTION()
+            setcdr(last, cons(cons(o, value), cdr(last)));
     }
-
-    WITH_GC_PROTECTION()
-        current_env = cons(cons(o, value), current_env);
 }
 
 /* + UTILITIES      ---------------- */
@@ -130,25 +135,9 @@ DEFSUBR(subr_intern, E, _)(lobj args)
 
 /* (bind! O1 [O2]) => bind O1 to object O2 in the innermost scope and
  * return O2. if O2 is omitted, bind O1 to (). */
-DEFSUBR(subr_bind, E, E)(lobj args)
+DEFSUBR(subr_bind, E E, E)(lobj args)
 {
-    lobj o2 = cdr(args) ? car(cdr(args)) : NIL;
-    bind(car(args), o2);
-    return o2;
-}
-
-/* (set! O1 O2) => update binding of O1 to O2 and return O2. error if
- * O1 is unbound. */
-void print(FILE*, lobj);
-DEFSUBR(subr_set, E E, E)(lobj args)
-{
-    lobj pair = binding(car(args));
-
-    if(pair)
-        setcdr(pair, car(cdr(args)));
-    else
-        lisp_error("cannot set unbound symbol.");
-
+    bind(car(args), car(cdr(args)), 0);
     return car(cdr(args));
 }
 
@@ -162,7 +151,7 @@ DEFSUBR(subr_bound_value, E, E)(lobj args)
     if(pair)
         return cdr(pair);
 
-    else if(cdr(args))          /* *FIXME* OPTIMIZE TAIL-CALL */
+    else if(cdr(args))
     {
         lobj o;
 
@@ -170,7 +159,7 @@ DEFSUBR(subr_bound_value, E, E)(lobj args)
             o = cons(car(cdr(args)),
                      cons(string("reference to unbound symbol."), NIL));
 
-        return eval(o, NIL);
+        return eval(o, NIL);    /* *FIXME* RECURSIVE "eval" */
     }
 
     else
@@ -566,7 +555,7 @@ DEFSUBR(subr_getc, _, E)(lobj args)
     if((val = getc(current_in)) != EOF)
         return character(val);
 
-    else if(args)               /* *FIXME* OPTIMIZE TAIL-CALL */
+    else if(args)
     {
         lobj o;
 
@@ -574,7 +563,7 @@ DEFSUBR(subr_getc, _, E)(lobj args)
             o = cons(car(args),
                      cons(string("failed to get character."), NIL));
 
-        return eval(o, NIL);
+        return eval(o, NIL);    /* *FIXME* RECURSIVE "eval" */
     }
 
     else
@@ -591,7 +580,7 @@ DEFSUBR(subr_putc, E, E)(lobj args)
 
     if(putc(character_value(car(args)), current_out) == EOF)
     {
-        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
+        if(cdr(args))
         {
             lobj o;
 
@@ -599,7 +588,7 @@ DEFSUBR(subr_putc, E, E)(lobj args)
                 o = cons(car(cdr(args)),
                          cons(string("failed to put character"), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         else
@@ -621,7 +610,7 @@ DEFSUBR(subr_puts, E, E)(lobj args)
 
     if(fprintf(current_out, string_ptr(car(args))) < 0)
     {
-        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
+        if(cdr(args))
         {
             lobj o;
 
@@ -629,7 +618,7 @@ DEFSUBR(subr_puts, E, E)(lobj args)
                 o = cons(car(cdr(args)),
                          cons(string("failed to put string"), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         else
@@ -653,7 +642,7 @@ DEFSUBR(subr_ungetc, E, E)(lobj args)
 
     if(ungetc(character_value(car(args)), current_in) == EOF)
     {
-        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
+        if(cdr(args))
         {
             lobj o;
 
@@ -661,7 +650,7 @@ DEFSUBR(subr_ungetc, E, E)(lobj args)
                 o = cons(car(cdr(args)),
                          cons(string("failed to unget character."), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         lisp_error("failed to unget character.");
@@ -701,14 +690,14 @@ DEFSUBR(subr_open, E, E)(lobj args)
     /* call FOPEN */
     if(!(f = fopen(filename, mode)))
     {
-        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
+        if(cdr(args))
         {
             lobj o;
 
             WITH_GC_PROTECTION()
                 o = cons(car(cdr(args)), cons(string("failed to open file"), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         else
@@ -728,14 +717,14 @@ DEFSUBR(subr_close, E, E)(lobj args)
 
     if(fclose(stream_value(car(args))) == EOF)
     {
-        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
+        if(cdr(args))
         {
             lobj o;
 
             WITH_GC_PROTECTION()
                 o = cons(car(cdr(args)), cons(string("failed to close stream."), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         else
@@ -1005,7 +994,7 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
 
     if(!(h = dlopen(string_ptr(car(args)), RTLD_LAZY)))
     {
-        if(cdr(cdr(args)))      /* *FIXME* OPTIMIZE TAIL-CALL */
+        if(cdr(cdr(args)))
         {
             lobj o;
 
@@ -1013,7 +1002,7 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
                 o = cons(car(cdr(cdr(args))),
                          cons(string("filed to load shared object."), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         else
@@ -1025,7 +1014,7 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
 
     if(!(ptr = dlsym(h, string_ptr(car(cdr(args))))))
     {
-        if(cdr(cdr(args)))      /* *FIXME* OPTIMIZE TAIL-CALL */
+        if(cdr(cdr(args)))
         {
             lobj o;
 
@@ -1033,7 +1022,7 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
                 o = cons(car(cdr(cdr(args))),
                          cons(string("filed to find symbol from shared object."), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         else
@@ -1366,8 +1355,8 @@ int get_literal_char(int endchar)
     }
 }
 
-/* *FIXME* "." is parsed as "0.0" */
-/* *TODO* implement comment */
+/* *FIXME* "." IS PARSED AS "0.0" (should "1." be "1.0" ?) */
+/* *TODO* IMPLEMENT COMMENT */
 
 /* read an S-expression and return it. if succeeded, last_parse_error
  * == NULL. otherwise last_parse_error == "error message". */
@@ -1516,7 +1505,7 @@ lobj read()
             {
                 double vv = 0;
 
-                /* *FIXME* POOR IMPLEMENTATION */
+                /* *FIXME* MAY OVERFLOW */
                 ch = getc(current_in);
                 while('0' <= ch && ch <= '9')
                 {
@@ -1630,7 +1619,7 @@ DEFSUBR(subr_read, _, E)(lobj args)
 
     val = read();
 
-    if(last_parse_error)        /* *FIXME* OPTIMIZE TAIL-CALL */
+    if(last_parse_error)
     {
         if(args)
         {
@@ -1639,7 +1628,7 @@ DEFSUBR(subr_read, _, E)(lobj args)
             WITH_GC_PROTECTION()
                 o = cons(car(args), cons(string(last_parse_error), NIL));
 
-            return eval(o, NIL);
+            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
         }
 
         else
@@ -1713,7 +1702,7 @@ int eval_pattern(lobj o)
         return ~0;
 }
 
-/* *TODO* OPTIMIZE TAIL-CALL */
+/* *FIXME* RECURSIVE "eval" */
 #define EVALUATION_ERROR(str)                                   \
     do{                                                         \
         if(!errorback)                                          \
@@ -1751,9 +1740,23 @@ int eval_pattern(lobj o)
 #define DEBUG_DUMP(labelname) do{}while(0)
 #endif
 
+/* *FIXME* "eval" INSIDE "eval" BREAKS CALLSTACK */
 lobj f_subr_eval(lobj);
 lobj eval(lobj o, lobj errorback)
 {
+    /* /\* we already have an eval session */
+    /*    -> just push to stack and return a dummy obj *\/ */
+    /* if(callstack) */
+    /* { */
+    /*     WITH_GC_PROTECTION() */
+    /*     { */
+    /*         lobj app = pappl(0, subr(subr_eval)); */
+    /*         pappl_push(app, o); */
+    /*         callstack = cons(array(3, app, NIL, current_env), callstack); */
+    /*     } */
+    /*     return NIL; */
+    /* } */
+
     callstack = NIL;
 
   eval:                 /* here O is an expression to be evaluated. */
@@ -1844,13 +1847,13 @@ lobj eval(lobj o, lobj errorback)
                 {
                     if(consp(formals))
                     {
-                        bind(car(formals), car(vals));
+                        bind(car(formals), car(vals), 1);
                         vals = cdr(vals);
                         formals = cdr(formals);
                     }
                     else
                     {
-                        bind(formals, vals);
+                        bind(formals, vals, 1);
                         break;
                     }
                 }
@@ -1890,7 +1893,7 @@ lobj eval(lobj o, lobj errorback)
                 if(fobj == f_subr_eval)
                 {
                     o = car(vals);
-                    errorback = cdr(vals) ? car(cdr(vals)) : errorback;
+                    /* errorback = cdr(vals) ? car(cdr(vals)) : errorback; */
                     goto eval;
                 }
                 if(fobj == f_subr_if)
@@ -2030,7 +2033,10 @@ lobj eval(lobj o, lobj errorback)
 
 /* (eval O [ERRORBACK]) => evaluate O. on failure, call ERRORBACK with
  * error message, or error if ERRORBACK is omitted. */
-DEFSUBR(subr_eval, E, E)(lobj args) { return eval(car(args), cdr(args) ? car(cdr(args)) : NIL); }
+DEFSUBR(subr_eval, E, E)(lobj args)
+{
+    return eval(car(args), cdr(args) ? car(cdr(args)) : NIL);
+}
 
 /* + OTHERS         ---------------- */
 
@@ -2049,70 +2055,69 @@ void subr_initialize()
     current_in = stdin, current_out = stdout, current_err = stderr;
 
     /* bind subrs */
-    bind(intern("nil"), NIL);
-    bind(intern("nil?"), subr(subr_nilp));
-    bind(intern("symbol?"), subr(subr_symbolp));
-    bind(intern("gensym"), subr(subr_gensym));
-    bind(intern("intern"), subr(subr_intern));
-    bind(intern("bind!"), subr(subr_bind));
-    bind(intern("set!"), subr(subr_set));
-    bind(intern("bound-value"), subr(subr_bound_value));
-    bind(intern("char?"), subr(subr_charp));
-    bind(intern("char->int"), subr(subr_char_to_int));
-    bind(intern("int->char"), subr(subr_int_to_char));
-    bind(intern("integer?"), subr(subr_integerp));
-    bind(intern("float?"), subr(subr_floatp));
-    bind(intern("mod"), subr(subr_mod));
-    bind(intern("/"), subr(subr_quot));
-    bind(intern("round"), subr(subr_round));
-    bind(intern("+"), subr(subr_add));
-    bind(intern("*"), subr(subr_mult));
-    bind(intern("-"), subr(subr_sub));
-    bind(intern("div"), subr(subr_div));
-    bind(intern("<="), subr(subr_le));
-    bind(intern("<"), subr(subr_lt));
-    bind(intern(">="), subr(subr_ge));
-    bind(intern(">"), subr(subr_gt));
-    bind(intern("stream?"), subr(subr_streamp));
-    bind(intern("current-input-port"), subr(subr_input_port));
-    bind(intern("current-output-port"), subr(subr_output_port));
-    bind(intern("current-error-port"), subr(subr_error_port));
-    bind(intern("set-ports"), subr(subr_set_ports));
-    bind(intern("getc"), subr(subr_getc));
-    bind(intern("putc"), subr(subr_putc));
-    bind(intern("puts"), subr(subr_puts));
-    bind(intern("ungetc"), subr(subr_ungetc));
-    bind(intern("open"), subr(subr_open));
-    bind(intern("close"), subr(subr_close));
-    bind(intern("cons?"), subr(subr_consp));
-    bind(intern("cons"), subr(subr_cons));
-    bind(intern("car"), subr(subr_car));
-    bind(intern("cdr"), subr(subr_cdr));
-    bind(intern("setcar!"), subr(subr_setcar));
-    bind(intern("setcdr!"), subr(subr_setcdr));
-    bind(intern("array?"), subr(subr_arrayp));
-    bind(intern("make-array"), subr(subr_make_array));
-    bind(intern("aref"), subr(subr_aref));
-    bind(intern("aset!"), subr(subr_aset));
-    bind(intern("string?"), subr(subr_stringp));
-    bind(intern("function?"), subr(subr_functionp));
-    bind(intern("fn"), subr(subr_fn));
-    bind(intern("closure?"), subr(subr_closurep));
-    bind(intern("closure"), subr(subr_closure));
-    bind(intern("subr?"), subr(subr_subrp));
-    bind(intern("dlsubr"), subr(subr_dlsubr));
-    bind(intern("continuation?"), subr(subr_continuationp));
-    bind(intern("eq?"), subr(subr_eq));
-    bind(intern("char="), subr(subr_char_eq));
-    bind(intern("="), subr(subr_num_eq));
-    bind(intern("print"), subr(subr_print));
-    bind(intern("read"), subr(subr_read));
-    bind(intern("if"), subr(subr_if));
-    bind(intern("evlis"), subr(subr_evlis));
-    bind(intern("apply"), subr(subr_apply));
-    bind(intern("unwind-protect"), subr(subr_unwind_protect));
-    bind(intern("call-cc"), subr(subr_call_cc));
-    bind(intern("eval"), subr(subr_eval));
-    bind(intern("error"), subr(subr_error));
-    bind(intern("quote"), subr(subr_quote));
+    bind(intern("nil"), NIL, 0);
+    bind(intern("nil?"), subr(subr_nilp), 0);
+    bind(intern("symbol?"), subr(subr_symbolp), 0);
+    bind(intern("gensym"), subr(subr_gensym), 0);
+    bind(intern("intern"), subr(subr_intern), 0);
+    bind(intern("bind!"), subr(subr_bind), 0);
+    bind(intern("bound-value"), subr(subr_bound_value), 0);
+    bind(intern("char?"), subr(subr_charp), 0);
+    bind(intern("char->int"), subr(subr_char_to_int), 0);
+    bind(intern("int->char"), subr(subr_int_to_char), 0);
+    bind(intern("integer?"), subr(subr_integerp), 0);
+    bind(intern("float?"), subr(subr_floatp), 0);
+    bind(intern("mod"), subr(subr_mod), 0);
+    bind(intern("/"), subr(subr_quot), 0);
+    bind(intern("round"), subr(subr_round), 0);
+    bind(intern("+"), subr(subr_add), 0);
+    bind(intern("*"), subr(subr_mult), 0);
+    bind(intern("-"), subr(subr_sub), 0);
+    bind(intern("div"), subr(subr_div), 0);
+    bind(intern("<="), subr(subr_le), 0);
+    bind(intern("<"), subr(subr_lt), 0);
+    bind(intern(">="), subr(subr_ge), 0);
+    bind(intern(">"), subr(subr_gt), 0);
+    bind(intern("stream?"), subr(subr_streamp), 0);
+    bind(intern("current-input-port"), subr(subr_input_port), 0);
+    bind(intern("current-output-port"), subr(subr_output_port), 0);
+    bind(intern("current-error-port"), subr(subr_error_port), 0);
+    bind(intern("set-ports"), subr(subr_set_ports), 0);
+    bind(intern("getc"), subr(subr_getc), 0);
+    bind(intern("putc"), subr(subr_putc), 0);
+    bind(intern("puts"), subr(subr_puts), 0);
+    bind(intern("ungetc"), subr(subr_ungetc), 0);
+    bind(intern("open"), subr(subr_open), 0);
+    bind(intern("close"), subr(subr_close), 0);
+    bind(intern("cons?"), subr(subr_consp), 0);
+    bind(intern("cons"), subr(subr_cons), 0);
+    bind(intern("car"), subr(subr_car), 0);
+    bind(intern("cdr"), subr(subr_cdr), 0);
+    bind(intern("setcar!"), subr(subr_setcar), 0);
+    bind(intern("setcdr!"), subr(subr_setcdr), 0);
+    bind(intern("array?"), subr(subr_arrayp), 0);
+    bind(intern("make-array"), subr(subr_make_array), 0);
+    bind(intern("aref"), subr(subr_aref), 0);
+    bind(intern("aset!"), subr(subr_aset), 0);
+    bind(intern("string?"), subr(subr_stringp), 0);
+    bind(intern("function?"), subr(subr_functionp), 0);
+    bind(intern("fn"), subr(subr_fn), 0);
+    bind(intern("closure?"), subr(subr_closurep), 0);
+    bind(intern("closure"), subr(subr_closure), 0);
+    bind(intern("subr?"), subr(subr_subrp), 0);
+    bind(intern("dlsubr"), subr(subr_dlsubr), 0);
+    bind(intern("continuation?"), subr(subr_continuationp), 0);
+    bind(intern("eq?"), subr(subr_eq), 0);
+    bind(intern("char="), subr(subr_char_eq), 0);
+    bind(intern("="), subr(subr_num_eq), 0);
+    bind(intern("print"), subr(subr_print), 0);
+    bind(intern("read"), subr(subr_read), 0);
+    bind(intern("if"), subr(subr_if), 0);
+    bind(intern("evlis"), subr(subr_evlis), 0);
+    bind(intern("apply"), subr(subr_apply), 0);
+    bind(intern("unwind-protect"), subr(subr_unwind_protect), 0);
+    bind(intern("call-cc"), subr(subr_call_cc), 0);
+    bind(intern("eval"), subr(subr_eval), 0);
+    bind(intern("error"), subr(subr_error), 0);
+    bind(intern("quote"), subr(subr_quote), 0);
 }
