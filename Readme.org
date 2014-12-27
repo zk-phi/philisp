@@ -654,6 +654,10 @@ omitted.
 CHAR. on failure, ERRORBACK is called with error message, or error if
 ERRORBACK is omitted.
 
+(puts STRING [ERRORBACK]) => write STRING to output port and return
+STRING. on failure, ERRORBACK is called with error message, or error
+if ERRORBACK is omitted.
+
 (ungetc CHAR [ERRORBACK]) => unget CHAR from input stream and return
 CHAR. when this subr is called multiple times without re-getting the
 ungot char, behavior is not guaranteed. on failure, ERRORBACK is
@@ -780,12 +784,6 @@ error message, or error if ERRORBACK is omitted.
 
     : (bind! 'Y (fn (f) (f (Y f))))
     : ((Y (fn (,f n) (if (n = 0) 1 (n * (,f (n - 1)))))) 1)
-
-  - 謎
-
-    : (bind! 'begin (fn ,x (if (nil? x) ()
-    :                          (if (nil? (cdr x)) (eval (car x))
-    :                          ((fn (_) (apply begin (cdr x))) (eval (car x)))))))
 
 - int や float もすべてオブジェクトなので効率が悪い
 
