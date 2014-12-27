@@ -26,6 +26,7 @@ int main(void)
 #endif
 
 #if !DEBUG
+lobj eval(lobj, lobj);
 int main(void)
 {
     lobj repl =

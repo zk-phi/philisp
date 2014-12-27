@@ -772,15 +772,10 @@ error message, or error if ERRORBACK is omitted.
 
 - 関数閉包が作れてない？
 
-- ちょいちょい挙動が変
-  - 末尾呼び最適化されているのに途中で止まる
+- 名前呼びなのに無限ループ？
 
-    : (bind! 'loop (fn () ,'(loop)))
-
-  - 名前呼びなのに無限ループ
-
-    : (bind! 'Y (fn (f) (f (Y f))))
-    : ((Y (fn (,f n) (if (n = 0) 1 (n * (,f (n - 1)))))) 1)
+  : (bind! 'Y (fn (f) (f (Y f))))
+  : ((Y (fn (,f n) (if (n = 0) 1 (n * (,f (n - 1)))))) 1)
 
 - int や float もすべてオブジェクトなので効率が悪い
 

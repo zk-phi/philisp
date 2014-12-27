@@ -1640,51 +1640,37 @@ DEFSUBR(subr_read, _, E)(lobj args)
 
 /* + EVALUATOR      ---------------- */
 
+#define DEFINE_DUMMY_SUBR(n, a, r)                     \
+    DEFSUBR(n, a, r)(lobj args)                        \
+    {                                                  \
+        unused(args);                                  \
+        internal_error("unexpected call to " #n ".");  \
+    }                                                  \
+
 /* (if COND ,THEN [,ELSE]) => if COND is non-(), evaluate THEN, else
  * evaluate ELSE. if ELSE is omitted, return (). */
-DEFSUBR(subr_if, E Q Q, _)(lobj args)
-{
-    /* ---- THIS IS A DUMMY DEFINITION (subr_eval WILL DO IT) ---- */
-    unused(args);
-    internal_error("unexpected call to subr \"if\"");
-}
+DEFINE_DUMMY_SUBR(subr_if, E Q Q, _)
 
 /* (evlis PROC EXPRS) => evaluate list of expressions in accordance
  * with evaluation rule of PROC. */
-DEFSUBR(subr_evlis, E E, _)(lobj args)
-{
-    /* ---- THIS IS A DUMMY DEFINITION (subr_eval WILL DO IT) ---- */
-    unused(args);
-    internal_error("unexpected call to subr \"evlis\"");
-}
+DEFINE_DUMMY_SUBR(subr_evlis, E E, _)
 
 /* (apply PROC ARGS) => apply ARGS to PROC. */
-DEFSUBR(subr_apply, E E, _)(lobj args)
-{
-    /* ---- THIS IS A DUMMY DEFINITION (subr_eval WILL DO IT) ---- */
-    unused(args);
-    internal_error("unexpected call to subr \"apply\"");
-}
+DEFINE_DUMMY_SUBR(subr_apply, E E, _)
 
 /* (unwind-protect ,BODY ,AFTER) => evaluate BODY and then AFTER. when
  * a continuation is called in BODY, evaluate AFTER before winding the
  * continuation. */
-DEFSUBR(subr_unwind_protect, Q Q, _)(lobj args)
-{
-    /* ---- THIS IS A DUMMY DEFINITION (subr_eval WILL DO IT) ---- */
-    unused(args);
-    internal_error("unexpected call to subr \"unwind-protect\"");
-}
+DEFINE_DUMMY_SUBR(subr_unwind_protect, Q Q, _)
 
 /* (call/cc FUNC) => evaluate BODY and then AFTER. when
  * a continuation is called in BODY, evaluate AFTER before winding the
  * continuation. */
-DEFSUBR(subr_call_cc, E, _)(lobj args)
-{
-    /* ---- THIS IS A DUMMY DEFINITION (subr_eval WILL DO IT) ---- */
-    unused(args);
-    internal_error("unexpected call to subr \"call/cc\"");
-}
+DEFINE_DUMMY_SUBR(subr_call_cc, E, _)
+
+/* (eval O [ERRORBACK]) => evaluate O. on failure, call ERRORBACK with
+ * error message, or error if ERRORBACK is omitted. */
+DEFINE_DUMMY_SUBR(subr_eval, E, E)
 
 int eval_pattern(lobj o)
 {
@@ -1741,7 +1727,6 @@ int eval_pattern(lobj o)
 #endif
 
 /* *FIXME* "eval" INSIDE "eval" BREAKS CALLSTACK */
-lobj f_subr_eval(lobj);
 lobj eval(lobj o, lobj errorback)
 {
     /* /\* we already have an eval session */
@@ -1893,6 +1878,7 @@ lobj eval(lobj o, lobj errorback)
                 if(fobj == f_subr_eval)
                 {
                     o = car(vals);
+                    /* *FIXME* FIX ERROR HANDLER */
                     /* errorback = cdr(vals) ? car(cdr(vals)) : errorback; */
                     goto eval;
                 }
@@ -2029,13 +2015,6 @@ lobj eval(lobj o, lobj errorback)
             }
         }
     }
-}
-
-/* (eval O [ERRORBACK]) => evaluate O. on failure, call ERRORBACK with
- * error message, or error if ERRORBACK is omitted. */
-DEFSUBR(subr_eval, E, E)(lobj args)
-{
-    return eval(car(args), cdr(args) ? car(cdr(args)) : NIL);
 }
 
 /* + OTHERS         ---------------- */
