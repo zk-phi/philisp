@@ -1,3 +1,9 @@
+/* *FIXME* DONOT CALL "eval" OUTIDE "eval"
+ * (inner eval will break outer eval's stack'. but callstack cannot be
+ *  local since outer stack must be unwinded on call
+ *  tocontinuation. maybe "eval" should handle errors?)
+ */
+
 #include "philisp.h"
 #include "subr.h"
 
@@ -599,6 +605,38 @@ DEFSUBR(subr_putc, E, E)(lobj args)
         else
             lisp_error("failed to put character.");
     }
+
+    fflush(current_out);
+
+    return car(args);
+}
+
+/* (puts STRING [ERRORBACK]) => write STRING to output port and return
+ * STRING. on failure, ERRORBACK is called with error message, or
+ * error if ERRORBACK is omitted. */
+DEFSUBR(subr_puts, E, E)(lobj args)
+{
+    if(!stringp(car(args)))
+        type_error("subr \"puts\"", 0, "string");
+
+    if(fprintf(current_out, string_ptr(car(args))) < 0)
+    {
+        if(cdr(args))           /* *FIXME* OPTIMIZE TAIL-CALL */
+        {
+            lobj o;
+
+            WITH_GC_PROTECTION()
+                o = cons(car(cdr(args)),
+                         cons(string("failed to put string"), NIL));
+
+            return eval(o, NIL);
+        }
+
+        else
+            lisp_error("failed to put string.");
+    }
+
+    fflush(current_out);
 
     return car(args);
 }
@@ -1235,6 +1273,8 @@ void print(FILE* stream, lobj o)
 
     else
         fprintf(stream, "#<broken object?>");
+
+    fflush(stream);
 }
 
 /* (print O) => print string representation of object O to output port
@@ -2010,7 +2050,6 @@ void subr_initialize()
 
     /* bind subrs */
     bind(intern("nil"), NIL);
-    bind(intern("t"), intern("t"));
     bind(intern("nil?"), subr(subr_nilp));
     bind(intern("symbol?"), subr(subr_symbolp));
     bind(intern("gensym"), subr(subr_gensym));
@@ -2041,6 +2080,7 @@ void subr_initialize()
     bind(intern("set-ports"), subr(subr_set_ports));
     bind(intern("getc"), subr(subr_getc));
     bind(intern("putc"), subr(subr_putc));
+    bind(intern("puts"), subr(subr_puts));
     bind(intern("ungetc"), subr(subr_ungetc));
     bind(intern("open"), subr(subr_open));
     bind(intern("close"), subr(subr_close));
