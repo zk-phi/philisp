@@ -12,8 +12,8 @@ lobj eval(lobj, lobj);
 
 /* + ENVIRONMENT    ---------------- */
 
-/* local_env  = '((x . 1) (y . 2) ... NIL ... (z . 2) ... NIL ...)
- * global_env = '(NIL (print . #<subr print>) (eval . #<subr eval>) ...)
+/* local_env  = '(<push here> (x . 1) ... NIL ... (y . 2) ... NIL ... (z . 3))
+ * global_env = '(NIL <push here> (nil . ()) (t . t) (cons . #<subr cons>) ...)
  */
 lobj local_env, global_env, callstack, unwind_protects;
 FILE *current_in, *current_out, *current_err;
@@ -226,14 +226,11 @@ DEFSUBR(subr_quot, E, E)(lobj args)
 
     val = integer_value(car(args));
 
-    args = cdr(args), i = 1;
-    while(args)
+    for(args = cdr(args), i = 1; args; args = cdr(args), i++)
     {
         if(!integerp(car(args)))
             type_error("subr \"/\"", i, "integer");
-
         val /= integer_value(car(args));
-        args = cdr(args), i++;
     }
 
     return integer(val);
@@ -258,11 +255,8 @@ DEFSUBR(subr_add, _, E)(lobj args)
     {
         int sum = 0;
 
-        while(args)
-        {
+        for(; args; args = cdr(args))
             sum += integer_value(car(args));
-            args = cdr(args);
-        }
 
         return integer(sum);
     }
@@ -270,18 +264,15 @@ DEFSUBR(subr_add, _, E)(lobj args)
     else
     {
         double sum = 0;
-        unsigned ix = 0;
+        unsigned ix;
 
-        while(args)
-        {
+        for(ix = 0; args; ix++, args = cdr(args))
             if(integerp(car(args)))
                 sum += integer_value(car(args));
             else if(floatingp(car(args)))
                 sum += floating_value(car(args));
             else
                 type_error("subr \"+\"", ix, "number");
-            ix++;
-        }
 
         return floating(sum);
     }
@@ -295,11 +286,8 @@ DEFSUBR(subr_mult, _, E)(lobj args)
     {
         int prod = 1;
 
-        while(args)
-        {
+        for(; args; args = cdr(args))
             prod *= integer_value(car(args));
-            args = cdr(args);
-        }
 
         return integer(prod);
     }
@@ -307,18 +295,15 @@ DEFSUBR(subr_mult, _, E)(lobj args)
     else
     {
         double prod = 1.0;
-        unsigned ix = 0;
+        unsigned ix;
 
-        while(args)
-        {
+        for(ix = 0; args; ix++, args = cdr(args))
             if(integerp(car(args)))
                 prod *= integer_value(car(args));
             else if(floatingp(car(args)))
                 prod *= floating_value(car(args));
             else
                 type_error("subr \"*\"", ix, "number");
-            ix++;
-        }
 
         return floating(prod);
     }
@@ -334,12 +319,8 @@ DEFSUBR(subr_sub, E, E)(lobj args)
         {
             int res = integer_value(car(args));
 
-            args = cdr(args);
-            while(args)
-            {
+            for(args = cdr(args); args; args = cdr(args))
                 res -= integer_value(car(args));
-                args = cdr(args);
-            }
 
             return integer(res);
         }
@@ -347,7 +328,7 @@ DEFSUBR(subr_sub, E, E)(lobj args)
         else
         {
             double res;
-            unsigned ix = 1;
+            unsigned ix;
 
             if(integerp(car(args)))
                 res = integer_value(car(args));
@@ -356,17 +337,13 @@ DEFSUBR(subr_sub, E, E)(lobj args)
             else
                 type_error("subr \"-\"", 0, "number");
 
-            args = cdr(args);
-            while(args)
-            {
+            for(ix = 1, args = cdr(args); args; ix++, args = cdr(args))
                 if(integerp(car(args)))
                     res -= integer_value(car(args));
                 else if(floatingp(car(args)))
                     res -= floating_value(car(args));
                 else
                     type_error("subr \"-\"", ix, "number");
-                ix++;
-            }
 
             return floating(res);
         }
@@ -390,7 +367,7 @@ DEFSUBR(subr_div, E, E)(lobj args)
     if(cdr(args))               /* more than 1 args */
     {
         double res;
-        unsigned ix = 1;
+        unsigned ix;
 
         if(integerp(car(args)))
             res = integer_value(car(args));
@@ -399,17 +376,13 @@ DEFSUBR(subr_div, E, E)(lobj args)
         else
             type_error("subr \"/\"", 0, "number");
 
-        args = cdr(args);
-        while(args)
-        {
+        for(ix = 1, args = cdr(args); args; ix++, args = cdr(args))
             if(integerp(car(args)))
                 res /= integer_value(car(args));
             else if(floatingp(car(args)))
                 res /= floating_value(car(args));
             else
                 type_error("subr \"/\"", ix, "number");
-            ix++;
-        }
 
         return floating(res);
     }
@@ -433,7 +406,7 @@ DEFSUBR(subr_div, E, E)(lobj args)
         else                                                            \
         {                                                               \
             double num1, num2;                                          \
-            unsigned ix = 1;                                            \
+            unsigned ix;                                                \
             lobj last;                                                  \
                                                                         \
             if(integerp(car(args)))                                     \
@@ -443,8 +416,7 @@ DEFSUBR(subr_div, E, E)(lobj args)
             else                                                        \
                 type_error("subr \"" #name "\"", 0, "number");          \
                                                                         \
-            args = cdr(args);                                           \
-            while(args)                                                 \
+            for(ix = 1, args = cdr(args); args; ix++, args = cdr(args)) \
             {                                                           \
                 if(integerp(car(args)))                                 \
                     num2 = integer_value(car(args));                    \
@@ -455,7 +427,7 @@ DEFSUBR(subr_div, E, E)(lobj args)
                                                                         \
                 if(!(num1 cmpop num2)) return NIL;                      \
                                                                         \
-                num1 = num2, ix++, last = args, args = cdr(args);       \
+                num1 = num2, last = args;                               \
             }                                                           \
                                                                         \
             return car(last);                                           \
@@ -1040,11 +1012,10 @@ DEFSUBR(subr_eq, _, E)(lobj args)
     {
         lobj last = car(args);
 
-        args = cdr(args);
-        while(args)
+        for(args = cdr(args); args; args = cdr(args))
         {
             if(last != car(args)) return NIL;
-            last = car(args), args = cdr(args);
+            last = car(args);
         }
 
         return symbol();
@@ -1061,7 +1032,7 @@ DEFSUBR(subr_char_eq, _, E)(lobj args)
     else
     {
         char ch1, ch2;
-        unsigned ix = 1;
+        unsigned ix;
         lobj last;
 
         if(characterp(car(args)))
@@ -1069,8 +1040,7 @@ DEFSUBR(subr_char_eq, _, E)(lobj args)
         else
             type_error("subr \"char=\"", 0, "character");
 
-        args = cdr(args);
-        while(args)
+        for(ix = 1, args = cdr(args); args; ix++, args = cdr(args))
         {
             if(characterp(car(args)))
                 ch2 = character_value(car(args));
@@ -1079,7 +1049,7 @@ DEFSUBR(subr_char_eq, _, E)(lobj args)
 
             if(ch1 != ch2) return NIL;
 
-            ch1 = ch2, ix++, last = args, args = cdr(args);
+            ch1 = ch2, last = args;
         }
 
         return car(last);
