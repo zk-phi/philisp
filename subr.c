@@ -1,9 +1,10 @@
 #include "philisp.h"
 #include "subr.h"
 
-#include <stdlib.h>
-#include <ctype.h>
-#include <dlfcn.h>
+#include <stdlib.h>             /* exit */
+#include <ctype.h>              /* isspace */
+#include <dlfcn.h>              /* dlopen, dlsym */
+#include <string.h>             /* strchr */
 
 #define unused(var) (void)(var) /* suppress "unused variable" warning */
 
@@ -1355,7 +1356,6 @@ int get_literal_char(int endchar)
     }
 }
 
-/* *FIXME* "." IS PARSED AS "0.0" (should "1." be "1.0" ?) */
 /* *TODO* IMPLEMENT COMMENT */
 
 /* read an S-expression and return it. if succeeded, last_parse_error
@@ -1380,6 +1380,12 @@ lobj read()
 
       case ']':
         PARSE_ERROR("too many ']' in expression.");
+
+      case ';':                 /* comment */
+        ch = getc(current_in);
+        while(ch != '\n' && ch != EOF)
+            ch = getc(current_in);
+        return read();
 
       case '\'':                /* quote */
         WITH_GC_PROTECTION()
@@ -1591,8 +1597,7 @@ lobj read()
             if(bufptr == SYMBOL_NAME_MAX)
                 internal_error("too long symbol name given.");
 
-            else if(ch == -1 || isspace(ch) || ch == '(' ||
-               ch == ')' || ch == '[' || ch == ']' || ch == '\"')
+            else if(ch == -1 || isspace(ch) || strchr("()[]\";", ch))
             {
                 buf[bufptr] = '\0';
                 break;
