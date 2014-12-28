@@ -361,13 +361,16 @@ lobj function(pargs args, lobj formals, lobj expr)
 /* + CLOSURE        ---------------- */
 
 int closurep(lobj o) { return o && o->type == TYPE_CLOS; }
-lobj (*closure_function)(lobj) = car;
-lobj (*closure_env)(lobj) = cdr;
+lobj closure_function(lobj o) { return ((lobj*)(o->data))[0]; }
+lobj closure_local_env(lobj o) { return ((lobj*)(o->data))[1]; }
+lobj closure_global_env(lobj o) { return ((lobj*)(o->data))[2]; }
 
-lobj closure(lobj function, lobj env)
+lobj closure(lobj function, lobj local_env, lobj global_env)
 {
-    lobj o = cons(function, env);
-    o->type = TYPE_CLOS;
+    lobj o = alloc_lobj(TYPE_CLOS, 3 * sizeof(lobj));
+    ((lobj*)(o->data))[0] = function,
+    ((lobj*)(o->data))[1] = local_env,
+    ((lobj*)(o->data))[2] = global_env;
     return o;
 }
 

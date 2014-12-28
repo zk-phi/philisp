@@ -993,15 +993,6 @@ error message, or error if ERRORBACK is omitted.
 (print2 'hoge)
 ```
 
-* 静的束縛のバグ
-  * bind! が環境の "末尾に" 破壊的にバインディングを追加するから、クロー
-    ジャー作った後に定義された束縛がクロージャーから見えちゃう
-
-```text
-(bind! 'fact (closure (fn (n) (if (n = 0) 1 (n * (fact (n - 1)))))))
-(fact 1)
-```
-
 * 名前呼びなのに無限ループ？
   * 再帰呼ばれた Y から見た f が Y になってる (変数束縛のバグ？)
 

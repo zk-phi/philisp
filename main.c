@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #if DEBUG
+lobj local_env;
 lobj eval(lobj, lobj);
 void print(FILE*, lobj);
 lobj read();
@@ -13,12 +14,11 @@ int main(void)
 {
     subr_initialize();
 
-    /* use pseudo-repl to reduce debug output. top-level binding may
-     * be destructed by function call, because of tail-call
-     * optimization */
+    /* use pseudo-repl to reduce debug output. */
     while(1)
     {
         printf(">> "); fflush(stdout);
+        local_env = NIL;
         print(stdout, eval(read(), NIL));
         puts("\n"); fflush(stdout);
     }

@@ -12,61 +12,49 @@ lobj eval(lobj, lobj);
 
 /* + ENVIRONMENT    ---------------- */
 
-lobj current_env = NIL, callstack = NIL, unwind_protects = NIL;
+/* local_env  = '((x . 1) (y . 2) ... NIL ... (z . 2) ... NIL ...)
+ * global_env = '(NIL (print . #<subr print>) (eval . #<subr eval>) ...)
+ */
+lobj local_env, global_env, callstack, unwind_protects;
 FILE *current_in, *current_out, *current_err;
 
 /* push boundary to current environ */
-void env_boundary() { current_env = cons(NIL, current_env); }
+void env_boundary() { local_env = cons(NIL, local_env); }
 
-/* search for a binding of O. returns binding, or () if unbound. */
-lobj binding(lobj o)
+/* search for a binding of O. returns binding, or () if unbound. if
+ * LOCAL is non-0, search only before a boundary. */
+lobj binding(lobj o, int local)
 {
-    lobj env = current_env;
+    lobj env;
 
-    while(env)
-    {
-        if(car(env) && car(car(env)) == o)
+    for(env = local_env; env; env = cdr(env))
+        if(!car(env) && local)
+            return NIL;
+        else if(car(env) && car(car(env)) == o)
             return car(env);
-        else
-            env = cdr(env);
-    }
+
+    for(env = cdr(global_env); env; env = cdr(env))
+        if(car(car(env)) == o)
+            return car(env);
 
     return NIL;
 }
 
 /* if binding of O is found, modify the binding. otherwise add a new
- * binding of O to VALUE. when LOCAL is non-0, environ before the last
- * boundary is not modified. */
+ * global binding of O. if LOCAL is non-0, search binding only BEFORE
+ * A BOUNDARY, and add a local binding instead. */
 void bind(lobj o, lobj value, int local)
 {
-    lobj env, last;
+    lobj b;
 
-    if(!current_env)
+    if((b = binding(o, local)))
+        setcdr(b, value);
+    else if(local)
         WITH_GC_PROTECTION()
-            current_env = cons(cons(o, value), NIL);
-
+            local_env = cons(cons(o, value), local_env);
     else
-    {
-        env = cdr(current_env), last = current_env;
-
-        while(env && (!local || car(env)))
-        {
-            if(car(env) && car(car(env)) == o)
-            {
-                setcdr(car(env), value);
-                return;
-            }
-
-            else
-            {
-                last = env;
-                env = cdr(env);
-            }
-        }
-
         WITH_GC_PROTECTION()
-            setcdr(last, cons(cons(o, value), cdr(last)));
-    }
+            setcdr(global_env, cons(cons(o, value), cdr(global_env)));
 }
 
 /* + UTILITIES      ---------------- */
@@ -147,7 +135,7 @@ DEFSUBR(subr_bind, E E, E)(lobj args)
  * is omitted. */
 DEFSUBR(subr_bound_value, E, E)(lobj args)
 {
-    lobj pair = binding(car(args));
+    lobj pair = binding(car(args), 0);
 
     if(pair)
         return cdr(pair);
@@ -971,9 +959,8 @@ DEFSUBR(subr_closurep, E, _)(lobj args) { return closurep(car(args)) ? car(args)
 /* (closure FN) => make a closure of function FN. */
 DEFSUBR(subr_closure, E, _)(lobj args)
 {
-    if(!functionp(car(args)))
-        type_error("subr \"closure\"", 0, "function");
-    return closure(car(args), current_env);
+    WITH_GC_PROTECTION()
+        return closure(car(args), local_env, cons(NIL, cdr(global_env)));
 }
 
 /* + C-FUNCTION     ---------------- */
@@ -1709,12 +1696,12 @@ int eval_pattern(lobj o)
 #if DEBUG
 #define DEBUG_DUMP(labelname)                                       \
     do{                                                             \
-        lobj env = current_env, stack = callstack;                  \
-        for(; stack; stack = cdr(stack))                            \
+        lobj env, stack;                                            \
+        for(stack = callstack; stack; stack = cdr(stack))           \
             fprintf(stdout, "> ");                                  \
         fprintf(stdout, labelname ": "); print(stdout, o);          \
-        fprintf(stdout, " | env: ");                                \
-        for(; env; env = cdr(env))                                  \
+        fprintf(stdout, " | l: ");                                  \
+        for(env = local_env; env; env = cdr(env))                   \
             if(car(env))                                            \
             {                                                       \
                 print(stdout, car(car(env)));                       \
@@ -1722,6 +1709,12 @@ int eval_pattern(lobj o)
             }                                                       \
             else                                                    \
                 fprintf(stdout, "/ ");                              \
+        fprintf(stdout, "| g: ");                                   \
+        for(env = cdr(global_env); env; env = cdr(env))             \
+        {                                                           \
+            print(stdout, car(car(env)));                           \
+            fprintf(stdout, " ");                                   \
+        }                                                           \
         fprintf(stdout, "\n"); fflush(stdout);                      \
     }while(0)
 #endif
@@ -1740,7 +1733,7 @@ lobj eval(lobj o, lobj errorback)
     /*     { */
     /*         lobj app = pa(0, subr(subr_eval)); */
     /*         pa_push(app, o); */
-    /*         callstack = cons(array(3, app, NIL, current_env), callstack); */
+    /*         callstack = cons(array(4, app, NIL, local_env, global_env), callstack); */
     /*     } */
     /*     return NIL; */
     /* } */
@@ -1753,15 +1746,15 @@ lobj eval(lobj o, lobj errorback)
 
     if(symbolp(o))
     {
-        if(!(o = binding(o)))
+        if(!(o = binding(o, 0)))
             EVALUATION_ERROR("reference to unbound symbol.");
         o = cdr(o);
         goto ret;
     }
     else if(consp(o))
     {
-        WITH_GC_PROTECTION() /* stack_frame = [pa, pending_args, saved_env] */
-            callstack = cons(array(3, NIL, cdr(o), current_env), callstack);
+        WITH_GC_PROTECTION() /* stack_frame = [pa, pending_args, local, global] */
+            callstack = cons(array(4, NIL, cdr(o), local_env, global_env), callstack);
 
         o = car(o);
 
@@ -1786,7 +1779,8 @@ lobj eval(lobj o, lobj errorback)
             pa_push(ptr[0], o);
 
         /* restore environ */
-        current_env = ptr[2];
+        local_env = ptr[2],
+       global_env = ptr[3];
 
         /* then evaluate next "unevaluated" arg or apply all evaluated args */
         if(ptr[1])
@@ -1811,6 +1805,8 @@ lobj eval(lobj o, lobj errorback)
     }
 
   apply:                  /* here O is a pa object to be applied */
+
+    DEBUG_DUMP("app ");
 
     {
         lobj func = pa_function(o),
@@ -1858,7 +1854,8 @@ lobj eval(lobj o, lobj errorback)
                 goto ret;
             else                /* okay */
             {
-                current_env = closure_env(func);
+                local_env = closure_local_env(func),
+               global_env = closure_global_env(func);
                 pa_set_function(o, closure_function(func));
                 goto apply;
             }
@@ -1984,10 +1981,10 @@ lobj eval(lobj o, lobj errorback)
             else                /* (1 f 2 ...) = ((f 1 2) ...) */
             {
                 WITH_GC_PROTECTION()
-                    callstack = cons(array(3,
+                    callstack = cons(array(4,
                                            pa(0, subr(subr_apply)),
                                            cons(cdr(cdr(vals)), NIL),
-                                           current_env),
+                                           local_env, global_env),
                                      callstack);
                 o = pa(0, car(vals));
                 pa_push(o, func);
@@ -2005,10 +2002,10 @@ lobj eval(lobj o, lobj errorback)
             else                /* ('a f ...) = ((f a) ...) */
             {
                 WITH_GC_PROTECTION()
-                    callstack = cons(array(3,
+                    callstack = cons(array(4,
                                            pa(0, subr(subr_apply)),
                                            cons(cdr(vals), NIL),
-                                           current_env),
+                                           local_env, global_env),
                                      callstack);
                 o = pa(0, car(vals));
                 pa_push(o, func);
@@ -2033,6 +2030,11 @@ void subr_initialize()
 {
     /* initialize ports */
     current_in = stdin, current_out = stdout, current_err = stderr;
+
+    /* initialize environ */
+    local_env = callstack = unwind_protects = NIL;
+    WITH_GC_PROTECTION()
+        global_env = cons(NIL, NIL);
 
     /* bind subrs */
     bind(intern("nil"), NIL, 0);
