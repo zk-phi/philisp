@@ -115,7 +115,7 @@ lobj function(pargs, lobj, lobj);
 lobj closure(lobj, lobj);
 lobj subr(lsubr);
 lobj continuation(lobj);
-lobj pappl(pargs, lobj);
+lobj pa(pargs, lobj);
 
 /* utilities */
 
@@ -137,7 +137,7 @@ int functionp(lobj);
 int closurep(lobj);
 int subrp(lobj);
 int continuationp(lobj);
-int papplp(lobj);
+int pap(lobj);
 
 /* utilities */
 
@@ -167,12 +167,12 @@ pargs subr_args(lobj);
 lobj (*subr_function(lobj))(lobj);
 char* subr_description(lobj);
 lobj continuation_callstack(lobj);
-pargs pappl_eval_pattern(lobj);
-lobj pappl_function(lobj);
-void pappl_set_function(lobj, lobj);
-lobj pappl_values(lobj);
-int pappl_num_values(lobj);
-void pappl_push(lobj, lobj);
+pargs pa_eval_pattern(lobj);
+lobj pa_function(lobj);
+void pa_set_function(lobj, lobj);
+lobj pa_values(lobj);
+int pa_num_values(lobj);
+void pa_push(lobj, lobj);
 
 /* ---------------- ---------------- ---------------- ---------------- */
 #endif /* _PHI_H_ */

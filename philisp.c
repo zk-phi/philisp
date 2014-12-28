@@ -19,7 +19,7 @@
 #define TYPE_FUNC  9  /* function     : formals + body                     */
 #define TYPE_CLOS  10 /* closure      : function or subr + bindings        */
 #define TYPE_CONT  11 /* continuation : call stack + environ               */
-#define TYPE_PAPPL 12 /* (internal structure for partially-applied object) */
+#define TYPE_PA    12 /* (internal structure for partially-applied object) */
 
 /* + ALLOCATOR      ---------------- */
 
@@ -401,7 +401,7 @@ lobj continuation(lobj callstack)
     return o;
 }
 
-/* + PAPPL          ---------------- */
+/* + PA          ---------------- */
 
 /* partially-applied object
    example: (if 1 'a)
@@ -409,16 +409,16 @@ lobj continuation(lobj callstack)
    -> head = cons(#<subr if> (cons 1 @tail=cons('a, NIL)))
  */
 
-int papplp(lobj o) { return o && o->type == TYPE_PAPPL; }
-int pappl_eval_pattern(lobj o) { return ((int*)(o->data))[0]; }
-int pappl_num_values(lobj o) { return ((int*)(o->data))[1]; }
-lobj pappl_function(lobj o) { return car(((lobj*)&(((int*)(o->data))[2]))[0]); }
-void pappl_set_function(lobj o, lobj newfn) { setcar(((lobj*)&(((int*)(o->data))[2]))[0], newfn); }
-lobj pappl_values(lobj o) { return cdr(((lobj*)&(((int*)(o->data))[2]))[0]); }
+int pap(lobj o) { return o && o->type == TYPE_PA; }
+int pa_eval_pattern(lobj o) { return ((int*)(o->data))[0]; }
+int pa_num_values(lobj o) { return ((int*)(o->data))[1]; }
+lobj pa_function(lobj o) { return car(((lobj*)&(((int*)(o->data))[2]))[0]); }
+void pa_set_function(lobj o, lobj newfn) { setcar(((lobj*)&(((int*)(o->data))[2]))[0], newfn); }
+lobj pa_values(lobj o) { return cdr(((lobj*)&(((int*)(o->data))[2]))[0]); }
 
-lobj pappl(int eval_pattern, lobj function)
+lobj pa(int eval_pattern, lobj function)
 {
-    lobj o = alloc_lobj(TYPE_PAPPL, sizeof(int) * 2 + sizeof(lobj) * 2);
+    lobj o = alloc_lobj(TYPE_PA, sizeof(int) * 2 + sizeof(lobj) * 2);
     ((int*)(o->data))[0] = eval_pattern;
     ((int*)(o->data))[1] = 0;
     ((lobj*)&(((int*)(o->data))[2]))[0]
@@ -431,7 +431,7 @@ lobj pappl(int eval_pattern, lobj function)
    - NUMBER OF MAXIMUM ARGUMENTS DEPENDS ON WORD-SIZE
 */
 
-void pappl_push(lobj o, lobj v)
+void pa_push(lobj o, lobj v)
 {
     lobj t = cons(v, NIL);
     ((int*)(o->data))[0] >>=  1;
