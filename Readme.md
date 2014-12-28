@@ -988,14 +988,35 @@ error message, or error if ERRORBACK is omitted.
 * 保存した継続を起動すると引数が多すぎると言われる
   * 戻りがけで継続を破壊的に変更してるから
 
-* 名前呼びなのに無限ループ？
+```text
+(print (call-cc (fn (cc) (bind! 'print2 cc))))
+(print2 'hoge)
+```
+
+* 静的束縛のバグ
+  * bind! が環境の "末尾に" 破壊的にバインディングを追加するから、クロー
+    ジャー作った後に定義された束縛がクロージャーから見えちゃう
 
 ```text
-(bind! 'Y (fn (f) (f (Y f))))
-((Y (fn (,f n) (if (n = 0) 1 (n * (,f (n - 1)))))) 1)
+(bind! 'fact (closure (fn (n) (if (n = 0) 1 (n * (fact (n - 1)))))))
+(fact 1)
+```
+
+* 名前呼びなのに無限ループ？
+  * 再帰呼ばれた Y から見た f が Y になってる (変数束縛のバグ？)
+
+```text
+(bind! 'Y (closure (fn (f) (f (Y f)))))
+(bind! 'fact (Y (closure (fn (,f n) (if (n = 0) 1 (n * (,f (n - 1))))))))
+(fact 1)
 ```
 
 * int や float もすべてオブジェクトなので効率が悪い
+
+* エラー処理が不親切
+
+* ERRORBACK を受け取る関数群で ERRORBACK が呼ばれると継続が吹き飛ぶ
+  * "eval" をリエントラントにになっていないせい
 
 ### 未実装
 
