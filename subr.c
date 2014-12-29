@@ -124,10 +124,11 @@ DEFSUBR(subr_intern, E, _)(lobj args)
 
 /* (bind! O1 [O2]) => bind O1 to object O2 in the innermost scope and
  * return O2. if O2 is omitted, bind O1 to (). */
-DEFSUBR(subr_bind, E E, E)(lobj args)
+DEFSUBR(subr_bind, E, E)(lobj args)
 {
-    bind(car(args), car(cdr(args)), 0);
-    return car(cdr(args));
+    lobj value = cdr(args) ? car(cdr(args)) : NIL;
+    bind(car(args), value, 0);
+    return value;
 }
 
 /* (bound-value O [ERRORBACK]) => object which O is bound to. if O is
@@ -805,7 +806,7 @@ DEFSUBR(subr_aref, E E, _)(lobj args)
 
 /* (aset! ARRAY N O) => set N-th element of ARRAY to O and return
  * O. error if O is negative or greater than the length of ARRAY. */
-DEFSUBR(subr_aset, E E, _)(lobj args)
+DEFSUBR(subr_aset, E E E, _)(lobj args)
 {
     int ix;
 
@@ -1182,14 +1183,23 @@ void print(FILE* stream, lobj o)
 
         fprintf(stream, "#<func:%d%s ", args & 255, args & 256 ? "+" : "");
 
-        if(consp(expr) && !consp(car(expr)) && !arrayp(car(expr)))
+        if(consp(expr))
         {
             fprintf(stream, "(");
-            print(stream, car(expr));
+
+            if(consp(car(expr)))
+                fprintf(stream, "(...)");
+            else if(arrayp(car(expr)))
+                fprintf(stream, "[...]");
+            else
+                print(stream, car(expr));
+
             fprintf(stream, " ...)");
         }
+        else if(arrayp(expr))
+            fprintf(stream, "[...]");
         else
-            fprintf(stream, "%p", (void*)o);
+            print(stream, expr);
 
         putc('>', stream);
     }
@@ -1213,9 +1223,9 @@ void print(FILE* stream, lobj o)
 
     else if(pap(o))
     {
-        fprintf(stream, "#<func:(pa/");
+        fprintf(stream, "#<func (pa:");
         print(stream, pa_function(o));
-        fprintf(stream, ")>");
+        fprintf(stream, "/%d)>", pa_num_values(o));
     }
 
     else
@@ -1944,8 +1954,8 @@ lobj eval(lobj o, lobj errorback)
             }
             else if(!cdr(vals)) /* (1 f) = (fn x (apply f 1 x)) */
             {
-                o = pa(eval_pattern(car(vals)), car(vals));
-                pa_push(o, func);
+                o = pa(eval_pattern(car(vals)), func);
+                pa_push(o, car(vals));
                 goto ret;
             }
             else                /* (1 f 2 ...) = ((f 1 2) ...) */
