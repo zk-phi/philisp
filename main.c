@@ -6,19 +6,23 @@
 #include <stdio.h>
 
 #if DEBUG
-lobj local_env;
+lobj local_env, global_env;
 lobj eval(lobj, lobj);
 void print(FILE*, lobj);
 lobj read();
 int main(void)
 {
+    lobj saved_global_env;
+
     subr_initialize();
+
+    saved_global_env = global_env;
 
     /* use pseudo-repl to reduce debug output. */
     while(1)
     {
         printf(">> "); fflush(stdout);
-        local_env = NIL;
+        local_env = NIL, global_env = saved_global_env;
         print(stdout, eval(read(), NIL));
         puts("\n"); fflush(stdout);
     }

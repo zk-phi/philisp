@@ -1660,28 +1660,22 @@ int eval_pattern(lobj o)
     while(0)
 
 #if DEBUG
-#define DEBUG_DUMP(labelname)                                       \
-    do{                                                             \
-        lobj env, stack;                                            \
-        for(stack = callstack; stack; stack = cdr(stack))           \
-            fprintf(stdout, "> ");                                  \
-        fprintf(stdout, labelname ": "); print(stdout, o);          \
-        fprintf(stdout, " | l: ");                                  \
-        for(env = local_env; env; env = cdr(env))                   \
-            if(car(env))                                            \
-            {                                                       \
-                print(stdout, car(car(env)));                       \
-                fprintf(stdout, " ");                               \
-            }                                                       \
-            else                                                    \
-                fprintf(stdout, "/ ");                              \
-        fprintf(stdout, "| g: ");                                   \
-        for(env = cdr(global_env); env; env = cdr(env))             \
-        {                                                           \
-            print(stdout, car(car(env)));                           \
-            fprintf(stdout, " ");                                   \
-        }                                                           \
-        fprintf(stdout, "\n"); fflush(stdout);                      \
+#define DEBUG_DUMP(labelname)                               \
+    do{                                                     \
+        lobj env, stack;                                    \
+        for(stack = callstack; stack; stack = cdr(stack))   \
+            printf("> ");                                   \
+        printf(labelname ": "); print(stdout, o);           \
+        printf(" | localvars: ");                           \
+        for(env = local_env; env; env = cdr(env))           \
+            if(car(env))                                    \
+            {                                               \
+                print(stdout, car(env));                    \
+                printf(" ");                                \
+            }                                               \
+            else                                            \
+                printf("/ ");                               \
+        printf("\n"); fflush(stdout);                       \
     }while(0)
 #endif
 #if !DEBUG
@@ -1772,7 +1766,7 @@ lobj eval(lobj o, lobj errorback)
 
   apply:                  /* here O is a pa object to be applied */
 
-    DEBUG_DUMP("app ");
+    DEBUG_DUMP("call");
 
     {
         lobj func = pa_function(o),
