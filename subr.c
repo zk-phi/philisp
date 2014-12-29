@@ -1469,7 +1469,7 @@ lobj read()
                     vv = vv * 10 + (ch - '0');
                     ch = getc(current_in);
                 }
-                while(vv > 1) vv /= 10;
+                while(vv >= 1) vv /= 10;
 
                 if(ch == 'e')
                 {
