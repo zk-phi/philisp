@@ -76,17 +76,77 @@ lobj list_array(lobj lst)
 }
 
 /* *TODO* IMPLEMENT STACK DUMPER, ERROR HANDLER */
+void print(FILE*, lobj);
+void stack_dump_(FILE* stream, lobj stack, int tail)
+{
+    lobj func, lst;
+
+    if(!stack)
+        return;
+    else if(!tail)
+    {
+        stack_dump_(stream, cdr(stack), 0);
+
+        putc('(', stream);
+
+        if(pap(func = array_ptr(car(stack))[0]))
+        {
+            print(stream, pa_function(func)), putc(' ', stream);
+
+            for(lst = pa_values(func); lst; lst = cdr(lst))
+            {
+                print(stream, car(lst));
+                putc(' ', stream);
+            }
+        }
+    }
+    else
+    {
+        for(lst = array_ptr(car(stack))[1]; lst; lst = cdr(lst))
+        {
+            putc(' ', stream);
+            print(stream, car(lst));
+        }
+
+        putc(')', stream);
+
+        stack_dump_(stream, cdr(stack), 1);
+    }
+}
+
+void stack_dump(FILE* stream)
+{
+    if(callstack)
+    {
+        fprintf(stream, ">> in expression ");
+        stack_dump_(stream, callstack, 0);
+        fprintf(stream, "[!]");
+        stack_dump_(stream, callstack, 1);
+    }
+}
 
 void type_error(char* name, unsigned ix, char* expected)
 {
     fprintf(current_err,
             "TYPE ERROR: %d-th arg for %s is not a %s\n",
             ix, name, expected);
+    stack_dump(current_err);
     exit(1);
 }
 
-void lisp_error(char* msg) { fprintf(current_err, "ERROR: %s\n", msg); exit(1); }
-void fatal(char* msg) { fprintf(current_err, "FATAL: %s\n", msg); exit(1); }
+void lisp_error(char* msg)
+{
+    fprintf(current_err, "ERROR: %s\n", msg);
+    stack_dump(current_err);
+    exit(1);
+}
+
+void fatal(char* msg)
+{
+    fprintf(current_err, "FATAL: %s\n", msg);
+    stack_dump(current_err);
+    exit(1);
+}
 
 /* + NIL            ---------------- */
 
@@ -1670,8 +1730,11 @@ int eval_pattern(lobj o)
         for(env = local_env; env; env = cdr(env))           \
             if(car(env))                                    \
             {                                               \
-                print(stdout, car(env));                    \
-                printf(" ");                                \
+                putchar('(');                               \
+                print(stdout, car(car(env)));               \
+                printf(" : ");                              \
+                print(stdout, cdr(car(env)));               \
+                printf(") ");                               \
             }                                               \
             else                                            \
                 printf("/ ");                               \

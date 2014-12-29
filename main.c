@@ -16,9 +16,8 @@ int main(void)
 
     subr_initialize();
 
-    saved_global_env = global_env;
-
     /* use pseudo-repl to reduce debug output. */
+    saved_global_env = global_env;
     while(1)
     {
         printf(">> "); fflush(stdout);
