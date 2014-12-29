@@ -85,17 +85,8 @@ void type_error(char* name, unsigned ix, char* expected)
     exit(1);
 }
 
-void lisp_error(char* msg)
-{
-    fprintf(current_err, "ERROR: %s\n", msg);
-    exit(1);
-}
-
-void internal_error(char* msg)
-{
-    fprintf(current_err, "INTERNAL ERROR: %s\n", msg);
-    exit(1);
-}
+void lisp_error(char* msg) { fprintf(current_err, "ERROR: %s\n", msg); exit(1); }
+void fatal(char* msg) { fprintf(current_err, "FATAL: %s\n", msg); exit(1); }
 
 /* + NIL            ---------------- */
 
@@ -116,7 +107,6 @@ DEFSUBR(subr_intern, E, _)(lobj args)
 {
     if(!stringp(car(args)))
         type_error("subr \"intern\"", 0, "string");
-
     return intern(string_ptr(car(args)));
 }
 
@@ -166,7 +156,6 @@ DEFSUBR(subr_char_to_int, E, _)(lobj args)
 {
     if(!characterp(car(args)))
         type_error("subr \"char->int\"", 0, "character");
-
     return integer(character_value(car(args)));
 }
 
@@ -175,7 +164,6 @@ DEFSUBR(subr_int_to_char, E, _)(lobj args)
 {
     if(!integerp(car(args)))
         type_error("subr \"int->char\"", 0, "integer");
-
     return character((char)integer_value(car(args)));
 }
 
@@ -194,12 +182,10 @@ DEFSUBR(subr_floatp, E, _)(lobj args) { return floatingp(car(args)) ? car(args) 
 int all_integerp(lobj lst)
 {
     while(lst)
-    {
         if(!integerp(car(lst)))
             return 0;
         else
             lst = cdr(lst);
-    }
 
     return 1;
 }
@@ -1551,7 +1537,7 @@ lobj read()
             else if(floatingp(v))
                 return floating(-floating_value(v));
             else
-                internal_error("unexpected non-number value after '-'.");
+                fatal("unexpected non-number value after '-'.");
         }
 
         /* vv FALL THROUGH ... vv */
@@ -1560,7 +1546,7 @@ lobj read()
         while(1)
         {
             if(bufptr == SYMBOL_NAME_MAX)
-                internal_error("too long symbol name given.");
+                fatal("too long symbol name given.");
 
             else if(ch == -1 || isspace(ch) || strchr("()[]\";", ch))
             {
@@ -1614,7 +1600,7 @@ DEFSUBR(subr_read, _, E)(lobj args)
     DEFSUBR(n, a, r)(lobj args)                        \
     {                                                  \
         unused(args);                                  \
-        internal_error("unexpected call to " #n ".");  \
+        fatal("unexpected call to " #n ".");  \
     }                                                  \
 
 /* (if COND ,THEN [,ELSE]) => if COND is non-(), evaluate THEN, else
@@ -1810,8 +1796,7 @@ lobj eval(lobj o, lobj errorback)
                     if(consp(formals))
                     {
                         bind(car(formals), car(vals), 1);
-                        vals = cdr(vals);
-                        formals = cdr(formals);
+                        vals = cdr(vals), formals = cdr(formals);
                     }
                     else
                     {
@@ -1868,7 +1853,7 @@ lobj eval(lobj o, lobj errorback)
                 else if(fobj == f_subr_evlis)
                 {
                     /* *TODO* IMPLEMENT EVLIS */
-                    internal_error("NOT IMPLEMENTED subr \"evlis\".");
+                    fatal("NOT IMPLEMENTED subr \"evlis\".");
                 }
                 else if(fobj == f_subr_apply)
                 {
@@ -1884,7 +1869,7 @@ lobj eval(lobj o, lobj errorback)
                 }
                 else if(fobj == f_subr_unwind_protect)
                 {
-                    internal_error("NOT IMPLEMENTED subr \"unwind-protect.\"");
+                    fatal("NOT IMPLEMENTED subr \"unwind-protect.\"");
 
                     /* *TODO* IMPLEMENT SUBR "unwind-protect" */
 
@@ -2012,9 +1997,7 @@ void subr_initialize()
     current_in = stdin, current_out = stdout, current_err = stderr;
 
     /* initialize environ */
-    local_env = callstack = unwind_protects = NIL;
-    WITH_GC_PROTECTION()
-        global_env = cons(NIL, NIL);
+    local_env = callstack = unwind_protects = NIL, global_env = cons(NIL, NIL);
 
     /* bind subrs */
     bind(intern("nil"), NIL, 0);
