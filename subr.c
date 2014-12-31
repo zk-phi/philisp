@@ -75,55 +75,38 @@ lobj list_array(lobj lst)
     return o;
 }
 
-/* *TODO* IMPLEMENT STACK DUMPER, ERROR HANDLER */
 void print(FILE*, lobj);
-void stack_dump_(FILE* stream, lobj stack, int tail)
+void stack_dump(FILE* stream)
 {
-    lobj func, lst;
+    lobj stack, t;
+    unsigned level = 0, i;
 
-    if(!stack)
-        return;
-    else if(!tail)
+    for(stack = callstack; stack; stack = cdr(stack))
     {
-        stack_dump_(stream, cdr(stack), 0);
+        for(i = 0; i < level; i++) fprintf(stream, "  ");
+        fprintf(stream, "> in expression ");
+        level++;
 
         putc('(', stream);
 
-        if(pap(func = array_ptr(car(stack))[0]))
+        if(pap(t = array_ptr(car(stack))[0]))
         {
-            print(stream, pa_function(func)), putc(' ', stream);
+            print(stream, pa_function(t)), putc(' ', stream);
 
-            for(lst = pa_values(func); lst; lst = cdr(lst))
-            {
-                print(stream, car(lst));
-                putc(' ', stream);
-            }
-        }
-    }
-    else
-    {
-        for(lst = array_ptr(car(stack))[1]; lst; lst = cdr(lst))
-        {
-            putc(' ', stream);
-            print(stream, car(lst));
+            for(t = pa_values(t); t; t = cdr(t))
+                print(stream, car(t)), putc(' ', stream);
         }
 
-        putc(')', stream);
+        fprintf(stream, "[!] ");
 
-        stack_dump_(stream, cdr(stack), 1);
+        for(t = array_ptr(car(stack))[1]; t; t = cdr(t))
+            putc(' ', stream), print(stream, car(t));
+
+        fprintf(stream, ")\n");
     }
 }
 
-void stack_dump(FILE* stream)
-{
-    if(callstack)
-    {
-        fprintf(stream, ">> in expression ");
-        stack_dump_(stream, callstack, 0);
-        fprintf(stream, "[!]");
-        stack_dump_(stream, callstack, 1);
-    }
-}
+/* *TODO* IMPLEMENT ERROR HANDLER */
 
 void type_error(char* name, unsigned ix, char* expected)
 {
