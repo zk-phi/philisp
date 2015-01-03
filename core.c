@@ -290,9 +290,8 @@ void print(FILE* stream, lobj o)
 
     else if(closurep(o))
     {
-        pargs args = function_args(closure_obj(o));
-        fprintf(stream, "#<closure:%d%s %p>",
-                args & 255, args & 256 ? "+" : "", (void*)o);
+        putc('$', stream);
+        print(stream, closure_obj(o));
     }
 
     else if(subrp(o))
@@ -408,6 +407,7 @@ lobj read()
     int ch;
     unsigned bufptr = 0;
     char buf[SYMBOL_NAME_MAX + 1];
+    lobj t;
 
     last_parse_error = NULL;
 
@@ -430,11 +430,13 @@ lobj read()
 
       case '\'':                /* quote */
         WITH_GC_PROTECTION()
-            return cons(intern("quote"), cons(read(), NIL));
+            t = cons(intern("quote"), cons(read(), NIL));
+        return t;
 
       case ',':                 /* eval */
         WITH_GC_PROTECTION()
-            return cons(intern("eval"), cons(read(), NIL));
+            t = cons(intern("eval"), cons(read(), NIL));
+        return t;
 
       case '?':                 /* char */
         ch = get_literal_char(-1);
@@ -450,24 +452,25 @@ lobj read()
             return NIL;
         else
         {
+            lobj head, last;
+
             ungetc(ch, current_in);
+
             WITH_GC_PROTECTION()
             {
-                lobj head = cons(read(), NIL), last = head;
+                head = cons(read(), NIL), last = head;
 
                 while((ch = read_char()) != ')')
                 {
                     if(ch == EOF)
                         PARSE_ERROR("unexpected EOF in a list.");
-
                     else if(ch == '.')
                     {
                         setcdr(last, read());
                         if(read_char() != ')')
                             PARSE_ERROR("more than one elements after dot.");
-                        return head;
+                        break;
                     }
-
                     else
                     {
                         ungetc(ch, current_in);
@@ -475,9 +478,9 @@ lobj read()
                         last = cdr(last);
                     }
                 }
-
-                return head;
             }
+
+            return head;
         }
 
       case '[':                 /* array */
@@ -485,10 +488,13 @@ lobj read()
             return make_array(0, NIL);
         else
         {
+            lobj head, last;
+
             ungetc(ch, current_in);
+
             WITH_GC_PROTECTION()
             {
-                lobj head = cons(read(), NIL), last = head;
+                head = cons(read(), NIL), last = head;
 
                 while((ch = read_char()) != ']')
                 {
@@ -498,9 +504,9 @@ lobj read()
                     setcdr(last, cons(read(), NIL));
                     last = cdr(last);
                 }
-
-                return list_array(head);
             }
+
+            return list_array(head);
         }
 
       case '\"':                /* string */
@@ -508,16 +514,17 @@ lobj read()
             return make_string(0, '\0');
         else
         {
+            lobj head, last;
+
             ungetc(ch, current_in);
+
+            if((ch = get_literal_char(-1)) == EOF)
+                PARSE_ERROR("unexpected EOF in a string literal.");
+            else if(ch == -3)
+                PARSE_ERROR("invalid escape sequence.");
+
             WITH_GC_PROTECTION()
             {
-                lobj head, last;
-
-                if((ch = get_literal_char(-1)) == EOF)
-                    PARSE_ERROR("unexpected EOF in a string literal.");
-                else if(ch == -3)
-                    PARSE_ERROR("invalid escape sequence.");
-
                 head = last = cons(character(ch), NIL);
 
                 while((ch = get_literal_char('\"')) != -2)
@@ -532,9 +539,9 @@ lobj read()
 
                 head = list_array(head);
                 stringp(head);  /* array -> string */
-
-                return head;
             }
+
+            return head;
         }
 
       case '.': case '0': case '1': case '2': case '3': case '4': /* number */
@@ -694,7 +701,7 @@ int eval_pattern(lobj o)
     if(functionp(o))
         return function_args(o) >> 9;
     else if(closurep(o))
-        return function_args(closure_obj(o)) >> 9;
+        return eval_pattern(closure_obj(o));
     else if(subrp(o))
         return subr_args(o) >> 9;
     else if(continuationp(o))
@@ -798,6 +805,17 @@ lobj eval(lobj o, lobj errorback)
         o = car(o);
         goto eval;
     }
+    else if(closurep(o))
+    {
+        lobj o2 = closure_obj(o);
+
+        if(symbolp(o2) || consp(o2))
+        {
+            restore_current_env(closure_env(o));
+            o = o2;
+            goto eval;
+        }
+    }
 
   ret:                       /* here O is an object evaluated just now. */
 
@@ -878,18 +896,9 @@ lobj eval(lobj o, lobj errorback)
         }
         else if(closurep(func))
         {
-            pargs num_args = function_args(closure_obj(func));
-
-            if((num_args & 255) < num_vals && !(num_args & 256)) /* too many */
-                EVALUATION_ERROR("too many arguments applied to a closure.");
-            else if(num_vals < (num_args & 255)) /* too few */
-                goto ret;
-            else                /* okay */
-            {
-                restore_current_env(closure_env(func));
-                pa_set_function(o, closure_obj(func));
-                goto apply;
-            }
+            restore_current_env(closure_env(func));
+            pa_set_function(o, closure_obj(func));
+            goto apply;
         }
         else if(subrp(func))
         {
