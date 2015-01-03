@@ -438,6 +438,11 @@ lobj read()
             t = cons(intern("eval"), cons(read(), NIL));
         return t;
 
+      case '$':                 /* closure */
+        WITH_GC_PROTECTION()
+            t = cons(intern("closure"), cons(read(), NIL));
+        return t;
+
       case '?':                 /* char */
         ch = get_literal_char(-1);
         if(ch == EOF)
@@ -786,7 +791,7 @@ lobj eval(lobj o, lobj errorback)
 
     callstack = NIL, eax = o;
 
-  eval:                 /* here O is an expression to be evaluated. */
+  eval:               /* here EAX is an expression to be evaluated. */
 
     DEBUG_DUMP("eval");
 
@@ -816,7 +821,7 @@ lobj eval(lobj o, lobj errorback)
         }
     }
 
-  ret:                       /* here O is an object evaluated just now. */
+  ret:                 /* here EAX is an object evaluated just now. */
 
     DEBUG_DUMP("ret ");
 
@@ -854,7 +859,7 @@ lobj eval(lobj o, lobj errorback)
         }
     }
 
-  apply:                  /* here O is a pa object to be applied */
+  apply:                   /* here EAX is a pa object to be applied */
 
     DEBUG_DUMP("call");
 
