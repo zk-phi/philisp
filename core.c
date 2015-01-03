@@ -290,8 +290,9 @@ void print(FILE* stream, lobj o)
 
     else if(closurep(o))
     {
-        putc('$', stream);
+        fprintf(stream, "#<closure ");
         print(stream, closure_obj(o));
+        putc('>', stream);
     }
 
     else if(subrp(o))
