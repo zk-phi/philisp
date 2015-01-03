@@ -1,6 +1,6 @@
 /* phi-lisp interpreter (prototype) : 2014 zk_phi */
 
-#include "structures.h"
+#include "philisp.h"
 #include "core.h"
 #include "subr.h"
 

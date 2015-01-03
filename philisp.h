@@ -1,12 +1,12 @@
-#ifndef _PHI_H_
-#define _PHI_H_ /* _PHI_H_ */
+#ifndef _PHILISP_H_
+#define _PHILISP_H_ /* _PHILISP_H_ */
 /* ---------------- ---------------- ---------------- ---------------- */
 
 #include <stdio.h>              /* FILE* */
 
 /* --- configs --- */
 
-#define DEBUG           1    /* enable debug output */
+#define DEBUG           0    /* enable debug output */
 #define SYMBOL_NAME_MAX 50   /* maximum length of symbol name */
 #define GC_PROTECT_MAX  100  /* maximum number of protected objects */
 
@@ -175,4 +175,4 @@ int pa_num_values(lobj);
 void pa_push(lobj, lobj);
 
 /* ---------------- ---------------- ---------------- ---------------- */
-#endif /* _PHI_H_ */
+#endif /* _PHILISP_H_ */
