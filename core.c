@@ -12,7 +12,7 @@
 /* local_env  = '(<push here> (x . 1) ... NIL ... (y . 2) ... NIL ... (z . 3))
  * global_env = '(NIL <push here> (nil . ()) (t . t) (cons . #<subr cons>) ...)
  */
-lobj local_env, global_env, callstack, unwind_protects;
+lobj local_env, global_env, callstack, eax, unwind_protects;
 FILE *current_in, *current_out, *current_err;
 
 /* push boundary to current environ */
@@ -728,46 +728,45 @@ int eval_pattern(lobj o)
     while(0)
 
 #if DEBUG
-#define DEBUG_DUMP(labelname)                               \
-    do{                                                     \
-        lobj env, stack;                                    \
-        for(stack = callstack; stack; stack = cdr(stack))   \
-            printf("> ");                                   \
-        printf(labelname ": "); print(stdout, o);           \
-        printf(" | locals: ");                              \
-        for(env = local_env; env; env = cdr(env))           \
-            if(car(env))                                    \
-            {                                               \
-                putchar('(');                               \
-                print(stdout, car(car(env)));               \
-                printf(" : ");                              \
-                print(stdout, cdr(car(env)));               \
-                printf(") ");                               \
-            }                                               \
-            else                                            \
-                printf("/ ");                               \
-        printf(" | globals: ");                             \
-        for(env = cdr(global_env); env; env = cdr(env))     \
-            if(subrp(cdr(car(env))))                        \
-            {                                               \
-                printf("...");                              \
-                break;                                      \
-            }                                               \
-            else                                            \
-            {                                               \
-                                                            \
-                putchar('(');                               \
-                print(stdout, car(car(env)));               \
-                printf(" : ");                              \
-                print(stdout, cdr(car(env)));               \
-                printf(") ");                               \
-            }                                               \
-        printf("\n"); fflush(stdout);                       \
-    }while(0)
-      #endif
-      #if !DEBUG
-      #define DEBUG_DUMP(labelname) do{}while(0)
-        #endif
+void DEBUG_DUMP(char* labelname)
+{
+    lobj env, stack;
+    for(stack = callstack; stack; stack = cdr(stack))
+        printf("> ");
+    printf("%s: ", labelname); print(stdout, eax);
+    printf(" | locals: ");
+    for(env = local_env; env; env = cdr(env))
+        if(car(env))
+        {
+            putchar('(');
+            print(stdout, car(car(env)));
+            printf(" : ");
+            print(stdout, cdr(car(env)));
+            printf(") ");
+        }
+        else
+            printf("/ ");
+    printf(" | globals: ");
+    for(env = cdr(global_env); env; env = cdr(env))
+        if(subrp(cdr(car(env))))
+        {
+            printf("...");
+            break;
+        }
+        else
+        {
+            putchar('(');
+            print(stdout, car(car(env)));
+            printf(" : ");
+            print(stdout, cdr(car(env)));
+            printf(") ");
+        }
+    printf("\n"); fflush(stdout);
+}
+#endif
+#if !DEBUG
+void DEBUG_DUMP(char* labelname) { unused(labelname); }
+#endif
 
 /* *FIXME* "eval" INSIDE "eval" BREAKS CALLSTACK */
 lobj eval(lobj o, lobj errorback)
@@ -779,40 +778,40 @@ lobj eval(lobj o, lobj errorback)
     /*     WITH_GC_PROTECTION() */
     /*     { */
     /*         lobj app = pa(0, subr(subr_eval)); */
-    /*         pa_push(app, o); */
+    /*         pa_push(app, eax); */
     /*         callstack = cons(array(4, app, NIL, local_env, global_env), callstack); */
     /*     } */
     /*     return NIL; */
     /* } */
 
-    callstack = NIL;
+    callstack = NIL, eax = o;
 
   eval:                 /* here O is an expression to be evaluated. */
 
     DEBUG_DUMP("eval");
 
-    if(symbolp(o))
+    if(symbolp(eax))
     {
-        if(!(o = binding(o, 0)))
+        if(!(eax = binding(eax, 0)))
             EVALUATION_ERROR("reference to unbound symbol.");
-        o = cdr(o);
+        eax = cdr(eax);
         goto ret;
     }
-    else if(consp(o))
+    else if(consp(eax))
     {
         WITH_GC_PROTECTION() /* stack_frame = [pa, pending_args, local, global] */
-            callstack = cons(array(3, NIL, cdr(o), save_current_env(1)), callstack);
-        o = car(o);
+            callstack = cons(array(3, NIL, cdr(eax), save_current_env(1)), callstack);
+        eax = car(eax);
         goto eval;
     }
-    else if(closurep(o))
+    else if(closurep(eax))
     {
-        lobj o2 = closure_obj(o);
+        lobj o = closure_obj(eax);
 
-        if(symbolp(o2) || consp(o2))
+        if(symbolp(o) || consp(o))
         {
-            restore_current_env(closure_env(o));
-            o = o2;
+            restore_current_env(closure_env(eax));
+            eax = o;
             goto eval;
         }
     }
@@ -822,16 +821,16 @@ lobj eval(lobj o, lobj errorback)
     DEBUG_DUMP("ret ");
 
     if(!callstack)           /* nothing more to evaluate */
-        return o;
+        return eax;
     else
     {
         lobj *ptr = array_ptr(car(callstack));
 
         /* update pa */
         if(!ptr[0])             /* pa is not set */
-            ptr[0] = pa(eval_pattern(o), o);
+            ptr[0] = pa(eval_pattern(eax), eax);
         else
-            pa_push(ptr[0], o);
+            pa_push(ptr[0], eax);
 
         /* restore environ */
         restore_current_env(ptr[2]);
@@ -839,7 +838,7 @@ lobj eval(lobj o, lobj errorback)
         /* then evaluate next "unevaluated" arg or apply all evaluated args */
         if(ptr[1])
         {
-            o = car(ptr[1]);
+            eax = car(ptr[1]);
             ptr[1] = cdr(ptr[1]);
 
             if(pa_eval_pattern(ptr[0]) & 1)
@@ -849,7 +848,7 @@ lobj eval(lobj o, lobj errorback)
         }
         else
         {
-            o = ptr[0];
+            eax = ptr[0];
             callstack = cdr(callstack);
             goto apply;
         }
@@ -860,9 +859,9 @@ lobj eval(lobj o, lobj errorback)
     DEBUG_DUMP("call");
 
     {
-        lobj func = pa_function(o),
-             vals = pa_values(o);
-        int num_vals = pa_num_values(o);
+        lobj func = pa_function(eax),
+             vals = pa_values(eax);
+        int num_vals = pa_num_values(eax);
 
         if(functionp(func))
         {
@@ -890,14 +889,14 @@ lobj eval(lobj o, lobj errorback)
                     }
                 }
 
-                o = function_expr(func);
+                eax = function_expr(func);
                 goto eval;
             }
         }
         else if(closurep(func))
         {
             restore_current_env(closure_env(func));
-            pa_set_function(o, closure_obj(func));
+            pa_set_function(eax, closure_obj(func));
             goto apply;
         }
         else if(subrp(func))
@@ -915,14 +914,14 @@ lobj eval(lobj o, lobj errorback)
 
                 if(fobj == f_subr_eval)
                 {
-                    o = car(vals);
+                    eax = car(vals);
                     /* *FIXME* FIX ERROR HANDLER */
                     /* errorback = cdr(vals) ? car(cdr(vals)) : errorback; */
                     goto eval;
                 }
                 if(fobj == f_subr_if)
                 {
-                    o = car(vals) ? car(cdr(vals)) : car(cdr(cdr(vals)));
+                    eax = car(vals) ? car(cdr(vals)) : car(cdr(cdr(vals)));
                     goto eval;
                 }
                 else if(fobj == f_subr_evlis)
@@ -932,13 +931,13 @@ lobj eval(lobj o, lobj errorback)
                 }
                 else if(fobj == f_subr_apply)
                 {
-                    o = pa(eval_pattern(car(vals)), car(vals));
+                    eax = pa(eval_pattern(car(vals)), car(vals));
 
                     if(!listp(car(cdr(vals))))
                         type_error("subr \"apply\"", 1, "list");
 
                     for(vals = car(cdr(vals)); vals; vals = cdr(vals))
-                        pa_push(o, car(vals));
+                        pa_push(eax, car(vals));
 
                     goto apply;
                 }
@@ -949,19 +948,19 @@ lobj eval(lobj o, lobj errorback)
                     /* *TODO* IMPLEMENT SUBR "unwind-protect" */
 
                     /* unwind_protects = cons(car(cdr(vals)), unwind_protects); */
-                    /* o = car(vals); */
+                    /* eax = car(vals); */
                     /* goto eval; */
                 }
                 else if(fobj == f_subr_call_cc)
                 {
-                    o = pa(eval_pattern(car(vals)), car(vals));
-                    pa_push(o, continuation(callstack));
+                    eax = pa(eval_pattern(car(vals)), car(vals));
+                    pa_push(eax, continuation(callstack));
                     goto apply;
                 }
                 else
                 {
                     WITH_GC_PROTECTION()
-                        o = (subr_function(func))(vals);
+                        eax = (subr_function(func))(vals);
                     goto ret;
                 }
             }
@@ -980,7 +979,7 @@ lobj eval(lobj o, lobj errorback)
                 }
 
                 callstack = continuation_callstack(func);
-                o = car(vals);
+                eax = car(vals);
                 goto ret;
             }
         }
@@ -990,17 +989,17 @@ lobj eval(lobj o, lobj errorback)
 
             lobj vals2 = pa_values(func);
 
-            o = pa(eval_pattern(pa_function(func)), pa_function(func));
+            eax = pa(eval_pattern(pa_function(func)), pa_function(func));
 
             while(vals2)
             {
-                pa_push(o, car(vals2));
+                pa_push(eax, car(vals2));
                 vals2 = cdr(vals2);
             }
 
             while(vals)
             {
-                pa_push(o, car(vals));
+                pa_push(eax, car(vals));
                 vals = cdr(vals);
             }
 
@@ -1010,13 +1009,13 @@ lobj eval(lobj o, lobj errorback)
         {
             if(!vals)           /* (1) = 1 */
             {
-                o = func;
+                eax = func;
                 goto ret;
             }
             else if(!cdr(vals)) /* (1 f) = (fn x (apply f 1 x)) */
             {
-                o = pa(eval_pattern(car(vals)), func);
-                pa_push(o, car(vals));
+                eax = pa(eval_pattern(car(vals)), func);
+                pa_push(eax, car(vals));
                 goto ret;
             }
             else                /* (1 f 2 ...) = ((f 1 2) ...) */
@@ -1027,9 +1026,9 @@ lobj eval(lobj o, lobj errorback)
                                            cons(cdr(cdr(vals)), NIL),
                                            save_current_env(1)),
                                      callstack);
-                o = pa(0, car(vals));
-                pa_push(o, func);
-                pa_push(o, car(cdr(vals)));
+                eax = pa(0, car(vals));
+                pa_push(eax, func);
+                pa_push(eax, car(cdr(vals)));
                 goto apply;
             }
         }
@@ -1037,7 +1036,7 @@ lobj eval(lobj o, lobj errorback)
         {
             if(!vals)           /* ('a) = 'a */
             {
-                o = func;
+                eax = func;
                 goto ret;
             }
             else                /* ('a f ...) = ((f a) ...) */
@@ -1048,8 +1047,8 @@ lobj eval(lobj o, lobj errorback)
                                            cons(cdr(vals), NIL),
                                            save_current_env(1)),
                                      callstack);
-                o = pa(0, car(vals));
-                pa_push(o, func);
+                eax = pa(0, car(vals));
+                pa_push(eax, func);
                 goto apply;
             }
         }
