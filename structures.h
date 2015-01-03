@@ -6,9 +6,9 @@
 
 /* --- configs --- */
 
-#define DEBUG           0    /* enable debug output */
+#define DEBUG           1    /* enable debug output */
 #define SYMBOL_NAME_MAX 50   /* maximum length of symbol name */
-#define GC_PROTECT_MAX  500  /* maximum number of protected objects */
+#define GC_PROTECT_MAX  100  /* maximum number of protected objects */
 
 /* --- typedefs --- */
 
@@ -112,7 +112,7 @@ lobj cons(lobj, lobj);
 lobj make_array(unsigned, lobj);
 lobj make_string(unsigned, char);
 lobj function(pargs, lobj, lobj);
-lobj closure(lobj, lobj, lobj);
+lobj closure(lobj, lobj);
 lobj subr(lsubr);
 lobj continuation(lobj);
 lobj pa(pargs, lobj);
@@ -161,9 +161,8 @@ void string_to_array(lobj);     /* transform a string into an array */
 pargs function_args(lobj);
 lobj function_formals(lobj);
 lobj function_expr(lobj);
-lobj closure_function(lobj);
-lobj closure_local_env(lobj);
-lobj closure_global_env(lobj);
+lobj (*closure_obj)(lobj);
+lobj (*closure_env)(lobj);
 pargs subr_args(lobj);
 lobj (*subr_function(lobj))(lobj);
 char* subr_description(lobj);

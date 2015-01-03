@@ -1,6 +1,7 @@
 /* phi-lisp interpreter (prototype) : 2014 zk_phi */
 
-#include "philisp.h"
+#include "structures.h"
+#include "core.h"
 #include "subr.h"
 
 #include <stdio.h>
@@ -12,16 +13,17 @@ void print(FILE*, lobj);
 lobj read();
 int main(void)
 {
-    lobj saved_global_env;
+    lobj saved_env;
 
+    core_initialize();
     subr_initialize();
 
     /* use pseudo-repl to reduce debug output. */
-    saved_global_env = global_env;
+    saved_env = save_current_env(1);
     while(1)
     {
         printf(">> "); fflush(stdout);
-        local_env = NIL, global_env = saved_global_env;
+        restore_current_env(saved_env);
         print(stdout, eval(read(), NIL));
         puts("\n"); fflush(stdout);
     }
@@ -44,6 +46,7 @@ int main(void)
     /* = ((fn (repl) (repl)) */
     /*    (fn (gensym) (repl (puts ">> ") (print (eval (read))) (puts "\n\n")))) */
 
+    core_initialize();
     subr_initialize();
     eval(repl, NIL);
 }

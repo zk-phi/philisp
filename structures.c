@@ -1,4 +1,4 @@
-#include "philisp.h"
+#include "structures.h"
 
 #include <stdio.h>              /* puts, putc, getc */
 #include <stdlib.h>             /* exit, malloc, free */
@@ -361,16 +361,13 @@ lobj function(pargs args, lobj formals, lobj expr)
 /* + CLOSURE        ---------------- */
 
 int closurep(lobj o) { return o && o->type == TYPE_CLOS; }
-lobj closure_function(lobj o) { return ((lobj*)(o->data))[0]; }
-lobj closure_local_env(lobj o) { return ((lobj*)(o->data))[1]; }
-lobj closure_global_env(lobj o) { return ((lobj*)(o->data))[2]; }
+lobj (*closure_obj)(lobj) = car;
+lobj (*closure_env)(lobj) = cdr;
 
-lobj closure(lobj function, lobj local_env, lobj global_env)
+lobj closure(lobj obj, lobj env)
 {
-    lobj o = alloc_lobj(TYPE_CLOS, 3 * sizeof(lobj));
-    ((lobj*)(o->data))[0] = function,
-    ((lobj*)(o->data))[1] = local_env,
-    ((lobj*)(o->data))[2] = global_env;
+    lobj o = cons(obj, env);
+    o->type = TYPE_CLOS;
     return o;
 }
 
