@@ -438,11 +438,6 @@ lobj read()
             t = cons(intern("eval"), cons(read(), NIL));
         return t;
 
-      case '$':                 /* closure */
-        WITH_GC_PROTECTION()
-            t = cons(intern("closure"), cons(read(), NIL));
-        return t;
-
       case '?':                 /* char */
         ch = get_literal_char(-1);
         if(ch == EOF)
