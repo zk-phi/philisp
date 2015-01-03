@@ -50,15 +50,9 @@ DEFSUBR(subr_bound_value, E, E)(lobj args)
         return cdr(pair);
 
     else if(cdr(args))
-    {
-        lobj o;
-
-        WITH_GC_PROTECTION()
-            o = cons(car(cdr(args)),
-                     cons(string("reference to unbound symbol."), NIL));
-
-        return eval(o, NIL);    /* *FIXME* RECURSIVE "eval" */
-    }
+        return eval(cons(car(cdr(args)),
+                         cons(string("reference to unbound symbol."), NIL)),
+                    NIL);    /* *FIXME* RECURSIVE "eval" */
 
     else
         lisp_error("reference to unbound symbol.");
@@ -422,15 +416,9 @@ DEFSUBR(subr_getc, _, E)(lobj args)
         return character(val);
 
     else if(args)
-    {
-        lobj o;
-
-        WITH_GC_PROTECTION()
-            o = cons(car(args),
-                     cons(string("failed to get character."), NIL));
-
-        return eval(o, NIL);    /* *FIXME* RECURSIVE "eval" */
-    }
+        return eval(cons(car(args),    /* *FIXME* RECURSIVE "eval" */
+                         cons(string("failed to get character."), NIL)),
+                    NIL);
 
     else
         lisp_error("failed to get character.");
@@ -447,15 +435,9 @@ DEFSUBR(subr_putc, E, E)(lobj args)
     if(putc(character_value(car(args)), current_out) == EOF)
     {
         if(cdr(args))
-        {
-            lobj o;
-
-            WITH_GC_PROTECTION()
-                o = cons(car(cdr(args)),
-                         cons(string("failed to put character"), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
+            return eval(cons(car(cdr(args)), /* *FIXME* RECURSIVE "eval" */
+                             cons(string("failed to put character"), NIL)),
+                        NIL);
 
         else
             lisp_error("failed to put character.");
@@ -477,15 +459,9 @@ DEFSUBR(subr_puts, E, E)(lobj args)
     if(fprintf(current_out, string_ptr(car(args))) < 0)
     {
         if(cdr(args))
-        {
-            lobj o;
-
-            WITH_GC_PROTECTION()
-                o = cons(car(cdr(args)),
-                         cons(string("failed to put string"), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
+            return eval(cons(car(cdr(args)), /* *FIXME* RECURSIVE "eval" */
+                             cons(string("failed to put string"), NIL)),
+                        NIL);
 
         else
             lisp_error("failed to put string.");
@@ -509,17 +485,12 @@ DEFSUBR(subr_ungetc, E, E)(lobj args)
     if(ungetc(character_value(car(args)), current_in) == EOF)
     {
         if(cdr(args))
-        {
-            lobj o;
+            return eval(cons(car(cdr(args)), /* *FIXME* RECURSIVE "eval" */
+                             cons(string("failed to unget character."), NIL)),
+                        NIL);
 
-            WITH_GC_PROTECTION()
-                o = cons(car(cdr(args)),
-                         cons(string("failed to unget character."), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
-
-        lisp_error("failed to unget character.");
+        else
+            lisp_error("failed to unget character.");
     }
 
     return car(args);
@@ -557,14 +528,9 @@ DEFSUBR(subr_open, E, E)(lobj args)
     if(!(f = fopen(filename, mode)))
     {
         if(cdr(args))
-        {
-            lobj o;
-
-            WITH_GC_PROTECTION()
-                o = cons(car(cdr(args)), cons(string("failed to open file"), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
+            return eval(cons(car(cdr(args)), /* *FIXME* RECURSIVE "eval" */
+                             cons(string("failed to open file"), NIL)),
+                        NIL);
 
         else
             lisp_error("failed to open file.");
@@ -584,14 +550,9 @@ DEFSUBR(subr_close, E, E)(lobj args)
     if(fclose(stream_value(car(args))) == EOF)
     {
         if(cdr(args))
-        {
-            lobj o;
-
-            WITH_GC_PROTECTION()
-                o = cons(car(cdr(args)), cons(string("failed to close stream."), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
+            return eval(cons(car(cdr(args)), /* *FIXME* RECURSIVE "eval" */
+                             cons(string("failed to close stream."), NIL)),
+                        NIL);
 
         else
             lisp_error("failed to close stream.");
@@ -773,7 +734,7 @@ DEFSUBR(subr_fn, Q Q, _)(lobj args)
         return function(256, s, car(cdr(args)));
     }
 
-    WITH_GC_PROTECTION()    /* more than 1 */
+    else
     {
         lobj head, tail;
         unsigned char len;
@@ -841,10 +802,7 @@ DEFSUBR(subr_closure, E, _)(lobj args)
     if(!(functionp(o) || symbolp(o) || consp(o)))
         type_error("subr \"closure\"", 0, "function, symbol, nor cons");
 
-    WITH_GC_PROTECTION()
-        o = closure(car(args), save_current_env(0));
-
-    return o;
+    return closure(car(args), save_current_env(0));
 }
 
 /* + C-FUNCTION     ---------------- */
@@ -867,15 +825,9 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
     if(!(h = dlopen(string_ptr(car(args)), RTLD_LAZY)))
     {
         if(cdr(cdr(args)))
-        {
-            lobj o;
-
-            WITH_GC_PROTECTION()
-                o = cons(car(cdr(cdr(args))),
-                         cons(string("filed to load shared object."), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
+            return eval(cons(car(cdr(cdr(args))), /* *FIXME* RECURSIVE "eval" */
+                             cons(string("filed to load shared object."), NIL)),
+                        NIL);
 
         else
             lisp_error("failed to load shared object.");
@@ -887,15 +839,9 @@ DEFSUBR(subr_dlsubr, E, E)(lobj args)
     if(!(ptr = dlsym(h, string_ptr(car(cdr(args))))))
     {
         if(cdr(cdr(args)))
-        {
-            lobj o;
-
-            WITH_GC_PROTECTION()
-                o = cons(car(cdr(cdr(args))),
-                         cons(string("filed to find symbol from shared object."), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
+            return eval(cons(car(cdr(cdr(args))), /* *FIXME* RECURSIVE "eval" */
+                             cons(string("filed to find symbol from shared object."), NIL)),
+                        NIL);
 
         else
             lisp_error("failed to find symbol from shared object.");
@@ -998,14 +944,9 @@ DEFSUBR(subr_read, _, E)(lobj args)
     if(last_parse_error)
     {
         if(args)
-        {
-            lobj o;
-
-            WITH_GC_PROTECTION()
-                o = cons(car(args), cons(string(last_parse_error), NIL));
-
-            return eval(o, NIL); /* *FIXME* RECURSIVE "eval" */
-        }
+            return eval(cons(car(args), /* *FIXME* RECURSIVE "eval" */
+                             cons(string(last_parse_error), NIL)),
+                        NIL);
 
         else
             lisp_error(last_parse_error);

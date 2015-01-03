@@ -960,7 +960,8 @@ lobj eval(lobj o, lobj errorback)
                 }
                 else
                 {
-                    o = (subr_function(func))(vals);
+                    WITH_GC_PROTECTION()
+                        o = (subr_function(func))(vals);
                     goto ret;
                 }
             }
