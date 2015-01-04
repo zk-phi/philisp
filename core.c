@@ -15,9 +15,6 @@
 lobj local_env, global_env, callstack, eax, unwind_protects;
 FILE *current_in, *current_out, *current_err;
 
-/* push boundary to current environ */
-void env_boundary() { local_env = cons(NIL, local_env); }
-
 /* search for a binding of O. returns binding, or () if unbound. if
  * LOCAL is non-0, search only before a boundary. */
 lobj binding(lobj o, int local)
