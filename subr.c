@@ -800,9 +800,9 @@ DEFSUBR(subr_closure, E, _)(lobj args)
     lobj o = car(args);
 
     if(!(functionp(o) || symbolp(o) || consp(o)))
-        type_error("subr \"closure\"", 0, "function, symbol, nor cons");
-
-    return closure(car(args), save_current_env(0));
+        return o;
+    else
+        return closure(o, save_current_env(0));
 }
 
 /* + C-FUNCTION     ---------------- */
