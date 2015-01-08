@@ -730,8 +730,12 @@ DEFSUBR(subr_stringp, E, _)(lobj args) { return stringp(car(args)) ? car(args) :
 
 /* + FUNCTION       ---------------- */
 
-/* (function? O) => O iff O is a function, or () otherwise. */
-DEFSUBR(subr_functionp, E, _)(lobj args) { return functionp(car(args)) ? car(args) : NIL; }
+/* (function? O) => O iff O is a function, partially-applied object or
+ * a closure of function. () otherwise. */
+DEFSUBR(subr_functionp, E, _)(lobj args)
+{
+    return obj(car(args), functionp) || obj(car(args), pap) ? car(args) : NIL;
+}
 
 /* (fn ,FORMALS ,EXPR) => a function. */
 DEFSUBR(subr_fn, Q Q, _)(lobj args)
@@ -814,12 +818,13 @@ DEFSUBR(subr_fn, Q Q, _)(lobj args)
 /* (closure? O) => O iff O is a function, or () otherwise. */
 DEFSUBR(subr_closurep, E, _)(lobj args) { return closurep(car(args)) ? car(args) : NIL; }
 
-/* (closure O) => make a closure of object O. O can be either a function, symbol or pair. */
-DEFSUBR(subr_closure, E, _)(lobj args)
+/* (closure O) => make a closure of object O. O can be either a
+ * function, symbol or pair. */
+DEFSUBR(subr_closure, E, _)(lobj args) /* *NOTE* PAs ARE NOT ACCEPTED */
 {
     lobj o = car(args);
 
-    if(!(functionp(o) || symbolp(o) || consp(o)))
+    if(!(functionp(o) || symbolp(o) || consp(o) || pap(o)))
         type_error("subr \"closure\"", 0, "function, symbol nor pair");
     else
         return closure(o, save_current_env(0));

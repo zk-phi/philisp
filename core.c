@@ -895,8 +895,7 @@ lobj eval(lobj o, lobj errorback)
         }
         else if(closurep(func))
         {
-            if(functionp(closure_obj(func)))
-                restore_current_env(closure_env(func));
+            restore_current_env(closure_env(func));
             pa_set_function(eax, closure_obj(func));
             goto apply;
         }
