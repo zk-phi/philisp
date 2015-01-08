@@ -15,11 +15,11 @@
 #define TYPE_CONS  5  /* cons         : lobj + lobj                        */
 #define TYPE_ARR   6  /* array        : length + (lobj, lobj, lobj, ...)   */
 #define TYPE_STR   7  /* (STRs are distinguished from ARRs INTERNALLY)     */
-#define TYPE_SUBR  8  /* C-function   : arity + pointer to (lobj(*)(lobj)) */
+#define TYPE_SUBR  8  /* C-function   : arity + lsubr                      */
 #define TYPE_FUNC  9  /* function     : formals + body                     */
-#define TYPE_CLOS  10 /* closure      : function or subr + bindings        */
-#define TYPE_CONT  11 /* continuation : call stack + environ               */
-#define TYPE_PA    12 /* (internal structure for partially-applied object) */
+#define TYPE_CONT  10 /* continuation : call stack + environ               */
+#define TYPE_CLOS  11 /* closure      : function or subr + bindings        */
+#define TYPE_PA    12 /* partially applied function                        */
 
 /* + ALLOCATOR      ---------------- */
 

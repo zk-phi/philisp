@@ -710,24 +710,9 @@ int eval_pattern(lobj o)
         return ~0;
 }
 
-/* *FIXME* RECURSIVE "eval" */
-#define EVALUATION_ERROR(str)                                   \
-    do{                                                         \
-        if(!errorback)                                          \
-            lisp_error(str);                                    \
-        else                                                    \
-        {                                                       \
-            lobj o;                                             \
-            WITH_GC_PROTECTION()                                \
-                o = cons(errorback, cons(string(str), NIL));    \
-            return eval(o, NIL);                                \
-        }                                                       \
-    }                                                           \
-    while(0)
-
-#if DEBUG
 void DEBUG_DUMP(char* labelname)
 {
+  #if DEBUG
     lobj env, stack;
     for(stack = callstack; stack; stack = cdr(stack))
         printf("> ");
@@ -760,11 +745,26 @@ void DEBUG_DUMP(char* labelname)
             printf(") ");
         }
     printf("\n"); fflush(stdout);
+  #endif
+  #if !DEBUG
+    unused(labelname);
+  #endif
 }
-#endif
-#if !DEBUG
-void DEBUG_DUMP(char* labelname) { unused(labelname); }
-#endif
+
+/* *FIXME* RECURSIVE "eval" */
+#define EVALUATION_ERROR(str)                                   \
+    do{                                                         \
+        if(!errorback)                                          \
+            lisp_error(str);                                    \
+        else                                                    \
+        {                                                       \
+            lobj o;                                             \
+            WITH_GC_PROTECTION()                                \
+                o = cons(errorback, cons(string(str), NIL));    \
+            return eval(o, NIL);                                \
+        }                                                       \
+    }                                                           \
+    while(0)
 
 /* *FIXME* "eval" INSIDE "eval" BREAKS CALLSTACK */
 lobj eval(lobj o, lobj errorback)

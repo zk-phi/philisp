@@ -1011,6 +1011,8 @@ error message, or error if ERRORBACK is omitted.
     * 文字列はシンボル、操作するときには文字のリストに変換
     * 全てのオブジェクトはアトムかコンス
 
+* `(1 1)` が無限ループ
+
 ### 未実装
 
 * evlis, unwind-protect
