@@ -6,6 +6,15 @@
 
 #define unused(var) (void)(var) /* suppress "unused variable" warning */
 
+/* + UTIL           ---------------- */
+
+lobj obj(lobj o, int(*typep)(lobj))
+{
+    return typep(o) ? o
+        : closurep(o) ? obj(closure_obj(o), typep)
+        : NIL;
+}
+
 /* + NIL            ---------------- */
 
 /* (nil? O) => an unspecified non-() value if O is (), or ()
@@ -14,8 +23,9 @@ DEFSUBR(subr_nilp, E, _)(lobj args) { return car(args) ? NIL : symbol(); }
 
 /* + SYMBOL         ---------------- */
 
-/* (symbol? O) => O if O is a symbol, or () otherwise. */
-DEFSUBR(subr_symbolp, E, _)(lobj args) { return symbolp(car(args)) ? car(args) : NIL; }
+/* (symbol? O) => O if O is a symbol or a closure of symbol. ()
+ * otherwise. */
+DEFSUBR(subr_symbolp, E, _)(lobj args) { return obj(car(args), symbolp) ? car(args) : NIL; }
 
 /* (gensym) => an uninterned symbol. */
 DEFSUBR(subr_gensym, _, _)(lobj args) { unused(args); return symbol(); }
@@ -563,49 +573,59 @@ DEFSUBR(subr_close, E, E)(lobj args)
 
 /* + CONS           ---------------- */
 
-/* (cons? O) => O if O is a pair, or () otherwise. */
-DEFSUBR(subr_consp, E, _)(lobj args) { return consp(car(args)) ? car(args) : NIL;  }
+/* (cons? O) => O if O is a pair or a closure of pair. ()
+ * otherwise. */
+DEFSUBR(subr_consp, E, _)(lobj args) { return obj(car(args), consp) ? car(args) : NIL; }
 
 /* (cons O1 O2) => pair of O1 and O2. */
 DEFSUBR(subr_cons, E E, _)(lobj args) { return cons(car(args), car(cdr(args))); }
 
-/* (car PAIR) => CAR part of PAIR. if PAIR is (), return (). */
+/* (car PAIR) => CAR part of PAIR. if PAIR is (), return (). PAIR also
+ * can be a closure of pair. */
 DEFSUBR(subr_car, E, _)(lobj args)
 {
+    lobj pair;
+
     if(!car(args))
         return NIL;
-    else if(consp(car(args)))
-        return car(car(args));
+    else if((pair = obj(car(args), consp)))
+        return car(pair);
     else
         type_error("subr \"car\"", 0, "cons nor ()");
 }
 
-/* (cdr PAIR) => CDR part of PAIR. if PAIR is (), return (). */
+/* (cdr PAIR) => CDR part of PAIR. if PAIR is (), return (). PAIR also
+ * can be a closure of pair. */
 DEFSUBR(subr_cdr, E, _)(lobj args)
 {
+    lobj pair;
+
     if(!car(args))
         return NIL;
-    else if(consp(car(args)))
-        return cdr(car(args));
+    else if((pair = obj(car(args), consp)))
+        return cdr(pair);
     else
         type_error("subr \"cdr\"", 0, "cons nor ()");
 }
 
-/* (setcar! PAIR NEWCAR) => set CAR part of PAIR to NEWCAR. return NEWCAR. */
+/* (setcar! PAIR NEWCAR) => set CAR part of PAIR to NEWCAR. return
+ * NEWCAR. PAIR also can be a closure of pair. */
 DEFSUBR(subr_setcar, E E, _)(lobj args)
 {
-    if(!consp(car(args)))
+    lobj pair;
+    if(!(pair = obj(car(args), consp)))
         type_error("subr \"setcar!\"", 0, "cons");
-    setcar(car(args), car(cdr(args)));
+    setcar(pair, car(cdr(args)));
     return car(cdr(args));
 }
 
 /* (setcdr! PAIR NEWCDR) => set CDR part of PAIR to NEWCDR. return NEWCDR. */
 DEFSUBR(subr_setcdr, E E, _)(lobj args)
 {
-    if(!consp(car(args)))
+    lobj pair;
+    if(!(pair = obj(car(args), consp)))
         type_error("subr \"setcdr!\"", 0, "cons");
-    setcdr(car(args), car(cdr(args)));
+    setcdr(pair, car(cdr(args)));
     return car(cdr(args));
 }
 
@@ -794,13 +814,13 @@ DEFSUBR(subr_fn, Q Q, _)(lobj args)
 /* (closure? O) => O iff O is a function, or () otherwise. */
 DEFSUBR(subr_closurep, E, _)(lobj args) { return closurep(car(args)) ? car(args) : NIL; }
 
-/* (closure FN) => make a closure of function FN. */
+/* (closure O) => make a closure of object O. O can be either a function, symbol or pair. */
 DEFSUBR(subr_closure, E, _)(lobj args)
 {
     lobj o = car(args);
 
     if(!(functionp(o) || symbolp(o) || consp(o)))
-        return o;
+        type_error("subr \"closure\"", 0, "function, symbol nor pair");
     else
         return closure(o, save_current_env(0));
 }
@@ -861,7 +881,8 @@ DEFSUBR(subr_continuationp, E, _)(lobj args)
 /* + EQUALITY       ---------------- */
 
 /* (eq O1 ...) => an unspecified non-() value if O1 ... are all the
- * same object, or () otherwise. */
+ * same object, or () otherwise. note that (eq 'a (closure 'a)) is
+ * (). */
 DEFSUBR(subr_eq, _, E)(lobj args)
 {
     if(!args)                   /* no args */

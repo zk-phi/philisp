@@ -887,13 +887,16 @@ lobj eval(lobj o, lobj errorback)
                     }
                 }
 
+                bind(intern("self"), func, 1);
+
                 eax = function_expr(func);
                 goto eval;
             }
         }
         else if(closurep(func))
         {
-            restore_current_env(closure_env(func));
+            if(functionp(closure_obj(func)))
+                restore_current_env(closure_env(func));
             pa_set_function(eax, closure_obj(func));
             goto apply;
         }
