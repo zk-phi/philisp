@@ -1,14 +1,27 @@
+# options
 CC = gcc
 OPT = -O2 -ansi -pedantic -Wall -W -Wextra -Wunreachable-code
 
-all :
-	-mkdir lib
-	-mkdir bin
-	$(CC) $(OPT) -o ./bin/philisp -I ./include/ ./src/main.c ./src/core.c ./src/philisp.c ./src/subr.c -ldl
-	$(CC) $(OPT) -o ./lib/libmath.a -shared -fPIC -I ./include/ ./src/lib/libmath.c ./src/philisp.c -lm
+# sources
+HEAD = $(wildcard include/*.h)
+SRC = $(wildcard src/*.c)
+LIBRC = $(wildcard src/lib/*.c)
+
+# targets
+LIB = $(LIBRC:src/lib/%.c=lib/%.so)
+EXEC = bin/philisp
+
+# ----
+
+all : $(EXEC) $(LIB)
+
+$(EXEC) : $(SRC) $(HEAD)
+	$(CC) $(OPT) -o $(EXEC) -I ./include/ $(SRC) -ldl
+
+lib/%.so : src/lib/%.c $(HEAD)
+	$(CC) $(OPT) -o $@ -shared -fPIC -I ./include/ $< ./src/philisp.c -lm
 
 .PHONY : clean
 
 clean :
-	-rm -r ./bin/philisp
-	-rm -r ./lib/libmath.a
+	rm $(EXEC) $(LIB)
