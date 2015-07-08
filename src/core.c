@@ -666,7 +666,7 @@ lobj read()
     DEFSUBR(n, a, r)(lobj args)                        \
     {                                                  \
         unused(args);                                  \
-        fatal("unexpected call to " #n ".");  \
+        fatal("unexpected call to " #n ".");           \
     }                                                  \
 
 /* (if COND ,THEN [,ELSE]) => if COND is non-(), evaluate THEN, else

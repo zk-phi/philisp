@@ -30,10 +30,11 @@
 
 * ...
 
-## コンパイル
+## コンパイル・実行
 
 ```text
-gcc *.c
+>> make
+>> ./bin/philisp
 ```
 
 ## 文字
@@ -652,7 +653,20 @@ ERROR: reference to unbound symbol.
 
 ## 共有オブジェクトのロード
 
-DLL を動的にロードして φLISP の関数として呼び出すことができます。
+`dlsubr` 関数によって DLL を動的にロードし、 φLISP の関数として呼び出
+すことができます。
+
+```text
+>> (bind! 'sin (dlsubr "./lib/libmath.a" "math_sin"))
+#<subr:1 math_sin>
+
+>> (sin (div 3.14 2))
+1.000000
+```
+
+これによって、 φLISP だけで記述できないような処理や速度の要求される処
+理をあらかじめ他言語で実装・コンパイルしておき、これを φLISP から利用
+することができます。
 
 ## 例外の扱い
 
