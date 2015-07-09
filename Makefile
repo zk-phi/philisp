@@ -1,6 +1,6 @@
 # options
 CC = gcc
-OPT = -O2 -ansi -pedantic -Wall -W -Wextra -Wunreachable-code -g
+OPT = -g -O2 -ansi -pedantic -Wall -W -Wextra -Wunreachable-code
 
 # directories
 HEADDIR = include/
@@ -21,30 +21,37 @@ EXEC = $(BINDIR)philisp
 
 # ----
 
-.PHONY : all clean
-
 all : $(EXEC) $(LIB)
 
-clean :
-	-rm $(EXEC) $(LIB) $(IMPLIB)
+ifeq ($(OS),Windows_NT)
+
+$(EXEC) : $(SRC) $(HEAD)
+	-mkdir bin/
+	-mkdir lib/
+	$(CC) $(OPT) -o $@ -rdynamic -I $(HEADDIR) $(SRC) -Wl,--out-implib,$(IMPLIB) -ldl
+
+$(IMPIB) : $(EXEC)
+
+$(LIBDIR)%.so : $(LIBSRCDIR)%.c $(HEAD) $(IMPLIB)
+	-mkdir lib/
+	$(CC) $(OPT) -o $@ -shared -fPIC -L $(LIBDIR) -I $(HEADDIR) $< -lm -lphilisp
+
+else
+
+$(EXEC) : $(SRC) $(HEAD)
+	-mkdir bin/
+	$(CC) $(OPT) -o $@ -rdynamic -I $(HEADDIR) $(SRC) -ldl
+
+$(LIBDIR)%.so : $(LIBSRCDIR)%.c $(HEAD)
+	-mkdir lib/
+	$(CC) $(OPT) -o $@ -shared -fPIC -I $(HEADDIR) $< -lm
+
+endif
 
 # ----
 
-ifeq ($(OS),Windows_NT)
-$(EXEC) : $(SRC) $(HEAD) $(BINDIR) $(LIBDIR)
-	$(CC) $(OPT) -o $@ -rdynamic -I $(HEADDIR) $(SRC) -Wl,--out-implib,$(IMPLIB) -ldl
-else
-$(EXEC) : $(SRC) $(HEAD) $(BINDIR)
-	$(CC) $(OPT) -o $@ -rdynamic -I $(HEADDIR) $(SRC) -ldl
-endif
+.PHONY : clean
 
-ifeq ($(OS),Windows_NT)
-$(LIBDIR)%.so : $(LIBSRCDIR)%.c $(LIBDIR) $(HEAD) $(IMPLIB)
-	$(CC) $(OPT) -o $@ -shared -fPIC -L $(LIBDIR) -I $(HEADDIR) $< -lm -lphilisp
-else
-$(LIBDIR)%.so : $(LIBSRCDIR)%.c $(LIBDIR) $(HEAD)
-	$(CC) $(OPT) -o $@ -shared -fPIC -I $(HEADDIR) $< -lm
-endif
-
-%/ :
-	mkdir $@
+clean :
+	-rm $(EXEC) $(LIB) $(IMPLIB)
+	-rmdir $(LIBDIR) $(BINDIR)

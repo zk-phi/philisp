@@ -525,23 +525,16 @@ DEFSUBR(subr_open, E, E)(lobj args)
 
     /* prepare MODE */
     ix = 1, mode[0] = 'r', args = cdr(args);
-    if(args)
-    {
-        if(car(args)) mode[ix] = 'w', ix++;
-        if((args = cdr(args)))
-        {
-            if(car(args)) mode[ix] = '+', ix++;
-            if((args = cdr(args)))
-                if(car(args)) mode[ix] = 'b', ix++;
-        }
-    }
+    if(args) { if(car(args)) mode[ix++] = 'w'; args = cdr(args); }
+    if(args) { if(car(args)) mode[ix++] = '+'; args = cdr(args); }
+    if(args) { if(car(args)) mode[ix++] = 'b'; args = cdr(args); }
     mode[ix] = '\0';
 
     /* call FOPEN */
     if(!(f = fopen(filename, mode)))
     {
-        if(cdr(args))
-            return eval(cons(car(cdr(args)), /* *FIXME* RECURSIVE "eval" */
+        if(args)
+            return eval(cons(car(args), /* *FIXME* RECURSIVE "eval" */
                              cons(string("failed to open file"), NIL)),
                         NIL);
 

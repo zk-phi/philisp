@@ -18,7 +18,7 @@ typedef struct lobj { unsigned mark : 1, type : 4; char data[1]; } *lobj;
 /*
   pargs: procedure arguments
   = evaluation_pattern + accept_rest_args? (1 bit) + arity (8 bits)
-  example: .                                                    gfedcba r arity
+  example: .                                      -- rest --    gfedcba r arity
   (lambda (a ,b c d ,e ,f . g) ...) -> pargs = 1111111111111111 1001101 1 0x06
 */
 typedef int pargs;
@@ -39,7 +39,7 @@ extern unsigned int gc_protected, gc_protect_count;
 
 #define DEFSUBR(name, args, rest)                       \
     lobj f_##name(lobj);                                \
-    lsubr name = { ARGS(args, rest), f_##name, #name};  \
+    lsubr name = { ARGS(args, rest), f_##name, #name }; \
     lobj f_##name
 
 #define Q (0)                   /* quote */
