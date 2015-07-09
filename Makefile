@@ -1,27 +1,50 @@
 # options
 CC = gcc
-OPT = -O2 -ansi -pedantic -Wall -W -Wextra -Wunreachable-code
+OPT = -O2 -ansi -pedantic -Wall -W -Wextra -Wunreachable-code -g
+
+# directories
+HEADDIR = include/
+SRCDIR = src/
+LIBSRCDIR = src/lib/
+LIBDIR = lib/
+BINDIR = bin/
 
 # sources
-HEAD = $(wildcard include/*.h)
-SRC = $(wildcard src/*.c)
-LIBRC = $(wildcard src/lib/*.c)
+HEAD = $(wildcard $(HEADDIR)*.h)
+SRC = $(wildcard $(SRCDIR)*.c)
+LIBSRC = $(wildcard $(LIBSRCDIR)*.c)
 
 # targets
-LIB = $(LIBRC:src/lib/%.c=lib/%.so)
-EXEC = bin/philisp
+LIB = $(LIBSRC:$(LIBSRCDIR)%.c=$(LIBDIR)%.so)
+IMPLIB = $(LIBDIR)philisp.lib # required to compile libraries on Windows
+EXEC = $(BINDIR)philisp
 
 # ----
 
+.PHONY : all clean
+
 all : $(EXEC) $(LIB)
 
-$(EXEC) : $(SRC) $(HEAD)
-	$(CC) $(OPT) -o $(EXEC) -I ./include/ $(SRC) -ldl
-
-lib/%.so : src/lib/%.c $(HEAD)
-	$(CC) $(OPT) -o $@ -shared -fPIC -I ./include/ $< ./src/philisp.c -lm
-
-.PHONY : clean
-
 clean :
-	rm $(EXEC) $(LIB)
+	-rm $(EXEC) $(LIB) $(IMPLIB)
+
+# ----
+
+ifeq ($(OS),Windows_NT)
+$(EXEC) : $(SRC) $(HEAD) $(BINDIR) $(LIBDIR)
+	$(CC) $(OPT) -o $@ -rdynamic -I $(HEADDIR) $(SRC) -Wl,--out-implib,$(IMPLIB) -ldl
+else
+$(EXEC) : $(SRC) $(HEAD) $(BINDIR)
+	$(CC) $(OPT) -o $@ -rdynamic -I $(HEADDIR) $(SRC) -ldl
+endif
+
+ifeq ($(OS),Windows_NT)
+$(LIBDIR)%.so : $(LIBSRCDIR)%.c $(LIBDIR) $(HEAD) $(IMPLIB)
+	$(CC) $(OPT) -o $@ -shared -fPIC -L $(LIBDIR) -I $(HEADDIR) $< -lm -lphilisp
+else
+$(LIBDIR)%.so : $(LIBSRCDIR)%.c $(LIBDIR) $(HEAD)
+	$(CC) $(OPT) -o $@ -shared -fPIC -I $(HEADDIR) $< -lm
+endif
+
+%/ :
+	mkdir $@

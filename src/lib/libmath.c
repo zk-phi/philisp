@@ -3,6 +3,7 @@
 #include <math.h>
 
 /* *FIXME* 型エラーどうやって通知するねん */
+
 DEFSUBR(math_sin, E, _)(lobj args)
 {
     if(integerp(car(args)))

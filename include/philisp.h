@@ -13,7 +13,6 @@
 /* --- typedefs --- */
 
 /* lobj: lisp object */
-
 typedef struct lobj { unsigned mark : 1, type : 4; char data[1]; } *lobj;
 
 /*
@@ -22,11 +21,9 @@ typedef struct lobj { unsigned mark : 1, type : 4; char data[1]; } *lobj;
   example: .                                                    gfedcba r arity
   (lambda (a ,b c d ,e ,f . g) ...) -> pargs = 1111111111111111 1001101 1 0x06
 */
-
 typedef int pargs;
 
 /* lsubr: C function that can be called from LISP world */
-
 typedef struct lsubr { pargs args; lobj (*function)(lobj); char* description; } lsubr;
 
 /* --- macros --- */

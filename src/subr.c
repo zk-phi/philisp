@@ -6,6 +6,9 @@
 
 #define unused(var) (void)(var) /* suppress "unused variable" warning */
 
+/* *TODO* 存在しないファイルを open するとセグるっぽい */
+/* *TODO* set-ports で REPL の入出力先が変わるのはどうなんだ */
+
 /* + UTIL           ---------------- */
 
 lobj obj(lobj o, int(*typep)(lobj))

@@ -1057,7 +1057,7 @@ lobj eval(lobj o, lobj errorback)
 
 /* + INITIALIZE     ---------------- */
 
-/* initialize current ports */
+/* initialize current ports, and the environment */
 void core_initialize()
 {
     current_in = stdin, current_out = stdout, current_err = stderr;
