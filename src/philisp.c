@@ -401,7 +401,7 @@ lobj continuation(lobj callstack)
     return o;
 }
 
-/* + PA          ---------------- */
+/* + PA             ---------------- */
 
 /* partially-applied object
    example: (if 1 'a)

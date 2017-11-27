@@ -37,6 +37,14 @@ extern unsigned int gc_protected, gc_protect_count;
 
 /* defsubr */
 
+/*
+  DEFSUBR(subr_hoge, E E Q E, E)(lobj args) { <body> }
+  =
+  lobj f_subr_hoge(lobj);
+  lsubr subr_hoge = { 0b1...11011100000100, f_subr_hoge, subr_hoge };
+  lobj f_subr_hoge(lobj args) { <body> }
+ */
+
 #define DEFSUBR(name, args, rest)                       \
     lobj f_##name(lobj);                                \
     lsubr name = { ARGS(args, rest), f_##name, #name }; \
